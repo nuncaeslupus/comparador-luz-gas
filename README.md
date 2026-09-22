@@ -4,8 +4,8 @@ Consulta el [comparador de ofertas de energía de la CNMC](https://comparador.cn
 y devuelve las ofertas ordenadas por precio, en JSON pensado para que lo consuma un LLM.
 
 ```bash
-uv run comparador-luz-gas --cp 08026 --consumo 2600 --texto
-uv run comparador-luz-gas --cp 08026 --consumo 2600 --consumo-gas 6000 --suministro ambas
+uv run comparador-luz-gas --cp 28013 --consumo 2600 --texto
+uv run comparador-luz-gas --cp 28013 --consumo 2600 --consumo-gas 6000 --suministro ambas
 uv run comparador-luz-gas --factura factura.pdf --texto   # saca los datos del QR
 ```
 
@@ -17,8 +17,8 @@ factura de electricidad lleva un QR** que apunta al comparador con el suministro
 desglosado:
 
 ```
-https://comparador.cnmc.gob.es/comparador/QRE?cp=08026&pP1=4.6&pP2=4.6
-   &caP1=740&caP2=660&caP3=757&cups=ES00314058...&imp=72.5&prE1=0.228857...
+https://comparador.cnmc.gob.es/comparador/QRE?cp=28013&pP1=4.6&pP2=4.6
+   &caP1=740&caP2=660&caP3=757&cups=ES0000000000000000XX&imp=72.50&prE1=0.2288...
 ```
 
 Trae código postal, potencias contratadas, **consumo anual real por periodo**

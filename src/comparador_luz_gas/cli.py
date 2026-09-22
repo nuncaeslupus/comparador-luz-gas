@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="comparador-luz-gas",
         description="Consulta el comparador de la CNMC; ofertas ordenadas por precio.",
     )
-    p.add_argument("--cp", help="código postal, p. ej. 08026")
+    p.add_argument("--cp", help="código postal, p. ej. 28013")
     p.add_argument("--consumo", type=float, help="consumo anual de luz en kWh")
     p.add_argument("--consumo-gas", type=float, default=0, help="consumo anual de gas en kWh")
     p.add_argument("--potencia", type=float, help="potencia contratada en kW")

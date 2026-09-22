@@ -47,7 +47,7 @@ def test_la_consulta_admite_ajustes() -> None:
 
 
 def test_los_campos_ausentes_no_revientan() -> None:
-    f = desde_qr("https://comparador.cnmc.gob.es/comparador/QRE?cp=08026")
+    f = desde_qr("https://comparador.cnmc.gob.es/comparador/QRE?cp=28013")
     assert f.consumo_anual == (0, 0, 0)
     assert f.cups == ""
 

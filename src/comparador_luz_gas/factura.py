@@ -4,7 +4,7 @@ Desde la Resolución de la CNMC de 24/06/2021 (modificada por BOE-A-2022-16989)
 toda factura de electricidad debe imprimir un QR que apunta al comparador con
 los datos del suministro ya desglosados::
 
-    https://comparador.cnmc.gob.es/comparador/QRE?cp=08026&pP1=4.6&caP1=740...
+    https://comparador.cnmc.gob.es/comparador/QRE?cp=28013&pP1=4.6&caP1=740...
 
 Como el formato lo fija la CNMC y no la comercializadora, leer el QR sirve para
 cualquier compañía: no hace falta un parser de texto por marca.

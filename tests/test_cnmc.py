@@ -19,18 +19,18 @@ def test_reparto_suma_el_consumo_anual() -> None:
 
 def test_reparto_reproduce_el_del_frontend() -> None:
     # Valores observados en una captura del comparador real para 2600 kWh.
-    assert Consulta(codigo_postal="08026", consumo_anual_luz=2600).reparto() == (745, 639, 1216)
+    assert Consulta(codigo_postal="28013", consumo_anual_luz=2600).reparto() == (745, 639, 1216)
 
 
 def test_franjas_explicitas_ganan_al_perfil() -> None:
-    c = Consulta(codigo_postal="08026", consumo_anual_luz=2600, franjas=(1000, 800, 800))
+    c = Consulta(codigo_postal="28013", consumo_anual_luz=2600, franjas=(1000, 800, 800))
     assert c.reparto() == (1000, 800, 800)
 
 
 def test_params_lleva_lo_que_la_api_exige() -> None:
-    p = _params(Consulta(codigo_postal="08026", consumo_anual_luz=2600, potencia=3.5))
+    p = _params(Consulta(codigo_postal="28013", consumo_anual_luz=2600, potencia=3.5))
     assert p["tipoSuministro"] == "E"
-    assert p["codigoPostal"] == "08026"
+    assert p["codigoPostal"] == "28013"
     assert p["cups"] == "0000"
     # Seis franjas de potencia, aunque 2.0TD solo use dos.
     for n in ("Primera", "Segunda", "Tercera", "Cuarta", "Quinta", "Sexta"):
