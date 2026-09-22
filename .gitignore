@@ -1,0 +1,34 @@
+# Capturas de red: pueden llevar CUPS, CP, consumos reales
+data/har/
+*.har
+*.har.index.jsonl
+
+# Facturas reales
+data/facturas/
+*.pdf
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+
+# Scratch
+tmp/
+
+arsenal/session/surface_profile.json
+
+arsenal/session/rate_limits.json
+
+arsenal/session/budget_iterations.json
+
+arsenal/session/worktree_isolation
+
+arsenal/session/host_branch
+
+arsenal/session/rescue_refs
