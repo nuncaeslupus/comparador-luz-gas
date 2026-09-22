@@ -105,9 +105,11 @@ def desde_qr(texto: str) -> Factura:
     imagen.
     """
     texto = texto.strip()
-    if HOST_QR not in texto:
-        raise SinQR(f"El texto no es un QR del comparador de la CNMC: {texto[:80]!r}")
     p = parse_qs(urlparse(texto).query, keep_blank_values=True)
+    # Solo se han visto facturas de Iberdrola, así que no damos por hecho el
+    # host: basta con que lleve los campos que define la resolución.
+    if HOST_QR not in texto and not ("cp" in p and ("caP1" in p or "pP1" in p)):
+        raise SinQR(f"El texto no es un QR del comparador de la CNMC: {texto[:80]!r}")
     if "cp" not in p:
         raise SinQR("El QR no lleva código postal; ¿es un QR de gas o de pago?")
     return Factura(

@@ -64,3 +64,10 @@ def test_se_lee_el_qr_de_las_facturas_reales() -> None:
         f = desde_fichero(pdf)
         assert f.codigo_postal.isdigit(), pdf.name
         assert f.consumo_anual_total > 0, pdf.name
+
+
+def test_un_qr_con_los_campos_de_la_resolucion_vale_aunque_cambie_el_host() -> None:
+    # Solo tenemos facturas de una comercializadora; si otra sirve el QR desde
+    # su propio dominio, los campos siguen siendo los que fija la CNMC.
+    otro = QR.replace("https://comparador.cnmc.gob.es/comparador", "https://otra.example/qr")
+    assert desde_qr(otro).consumo_anual == (740, 660, 757)
