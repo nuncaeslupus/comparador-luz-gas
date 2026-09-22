@@ -43,9 +43,16 @@ mandarnos la cadena y saltarse por completo el extra de imagen. Desde el CLI,
 Leer el QR de un fichero necesita el extra y `libzbar`:
 
 ```bash
-uv sync --extra facturas   # pyzbar + pillow
+uv sync --extra facturas   # pyzbar + opencv-python-headless
 sudo apt install libzbar0 poppler-utils
 ```
+
+### ¿Y una factura escaneada?
+
+Depende de a cuánto se escanee. **300 dpi es el mínimo práctico**: el QR mide unos
+3 px por módulo a esa resolución, justo en el límite de los decodificadores. A 150
+dpi no hay nada que hacer. Los números medidos, y por qué se prueban dos
+decodificadores a varias escalas, están en [docs/qr-escaneado.md](docs/qr-escaneado.md).
 
 ## Qué cubre el comparador, y qué no
 

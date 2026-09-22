@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,12 +26,12 @@ from .cnmc import Consulta
 
 HOST_QR = "comparador.cnmc.gob.es"
 _RESOLUCION_PDF = 300
-_LADOS = (2500, 3500, 1700, 5000)
-"""Píxeles del lado largo a los que reescalar antes de reintentar.
+_LADOS = (0, 9000, 7000, 5300)
+"""Píxeles del lado largo a los que reescalar la página; 0 es el tamaño original.
 
-zbar no falla por falta de calidad sino porque el módulo del QR le queda
-demasiado grande o demasiado pequeño: una página a 600 dpi se lee peor que
-la misma a 300. Por eso se barren tamaños en vez de subir la resolución.
+El QR ocupa ~3 px por módulo a 300 dpi, justo en el límite de los
+decodificadores, así que lo que decide no es el dpi del escaneo sino el tamaño
+al que se le presenta la página. Medido en `docs/qr-escaneado.md`.
 """
 
 
@@ -133,51 +134,63 @@ def desde_qr(texto: str) -> Factura:
     )
 
 
-def _decodificar(imagen: Any) -> str | None:
+def _es_qr(texto: str) -> bool:
+    return HOST_QR in texto or "cp=" in texto
+
+
+def _candidatos(img: Any, nativo: bool) -> Iterator[str]:
+    """Lo que lean los decodificadores en esta imagen.
+
+    A tamaño original solo se llama a zbar, que es quien lee el PDF nativo
+    (22/22 facturas reales) y además es el rápido. OpenCV entra solo en las
+    pasadas ampliadas, que es donde gana: no acertó ni un caso a escala 1 en
+    ninguna de las medidas de `docs/qr-escaneado.md`.
+    """
+    import cv2
     from pyzbar.pyzbar import ZBarSymbol, decode  # type: ignore[import-untyped]
 
     # Solo QR: si no, zbar intenta además el código de barras de pago de la
     # factura y tarda varias veces más en cada página.
-    for res in decode(imagen, symbols=[ZBarSymbol.QRCODE]):
-        texto: str = res.data.decode("utf-8", "replace")
-        if HOST_QR in texto:
-            return texto
-    return None
+    for res in decode(img, symbols=[ZBarSymbol.QRCODE]):
+        yield res.data.decode("utf-8", "replace")
+    if nativo:
+        return
+    try:
+        ok, textos, _, _ = cv2.QRCodeDetector().detectAndDecodeMulti(img)
+    except cv2.error:  # pragma: no cover - OpenCV revienta con imágenes raras
+        return
+    if ok:
+        yield from textos
 
 
-def _variantes(imagen: Any) -> Iterator[Any]:
-    """La imagen tal cual, a varios tamaños y binarizada; se para en la primera."""
-    from PIL import Image
+def _escalar(img: Any, lado: int) -> Any | None:
+    """La página a ese lado largo, o None si ya se probó a ese tamaño."""
+    import cv2
 
-    gris = imagen.convert("L")
-    yield gris
-    lado = max(gris.size)
-    for objetivo in _LADOS:
-        if abs(objetivo - lado) > lado * 0.15:
-            f = objetivo / lado
-            nuevo = (max(1, round(gris.width * f)), max(1, round(gris.height * f)))
-            yield gris.resize(nuevo, Image.Resampling.LANCZOS)
-    yield gris.point(lambda v: 255 if v > 128 else 0)
+    if not lado:
+        return img
+    f = lado / max(img.shape[:2])
+    if abs(f - 1) < 0.1:
+        return None
+    interp = cv2.INTER_CUBIC if f > 1 else cv2.INTER_AREA
+    return cv2.resize(img, None, fx=f, fy=f, interpolation=interp)
 
 
-def _paginas(ruta: Path, resolucion: int) -> Iterator[Any]:
-    from PIL import Image
-
+@contextmanager
+def _paginas(ruta: Path, resolucion: int) -> Iterator[list[Path]]:
+    """Las páginas del documento como ficheros de imagen."""
     if ruta.suffix.lower() != ".pdf":
-        yield Image.open(ruta)
+        yield [ruta]
         return
     if not shutil.which("pdftoppm"):
         raise RuntimeError("Falta 'pdftoppm' (paquete poppler-utils) para leer PDFs.")
     with tempfile.TemporaryDirectory() as tmp:
-        # ponytail: renderiza el PDF entero de una vez; si algún día pesan de
-        # verdad, pasar a -f/-l página a página y parar en el primer QR.
         subprocess.run(
             ["pdftoppm", "-r", str(resolucion), "-png", str(ruta), f"{tmp}/pg"],
             check=True,
             capture_output=True,
         )
-        for png in sorted(Path(tmp).glob("pg-*.png")):
-            yield Image.open(png)
+        yield sorted(Path(tmp).glob("pg-*.png"))
 
 
 def leer_qr(ruta: Path | str) -> str:
@@ -186,8 +199,8 @@ def leer_qr(ruta: Path | str) -> str:
     if not ruta.is_file():
         raise FileNotFoundError(ruta)
     try:
+        import cv2
         import pyzbar.pyzbar  # type: ignore[import-untyped]  # noqa: F401
-        from PIL import Image  # noqa: F401
     except ImportError as e:  # pragma: no cover - depende del entorno
         raise RuntimeError(
             "Leer el QR necesita el extra 'facturas': pip install "
@@ -195,10 +208,19 @@ def leer_qr(ruta: Path | str) -> str:
             "apt install libzbar0)."
         ) from e
 
-    for pagina in _paginas(ruta, _RESOLUCION_PDF):
-        for variante in _variantes(pagina):
-            if texto := _decodificar(variante):
-                return texto
+    with _paginas(ruta, _RESOLUCION_PDF) as paginas:
+        # Escala por fuera y página por dentro: la factura normal cae en la
+        # primera pasada, que es la barata, y solo un escaneo malo paga el resto.
+        for lado in _LADOS:
+            for pagina in paginas:
+                img = cv2.imread(str(pagina), cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    raise SinQR(f"No se pudo abrir la imagen {pagina}")
+                if (b := _escalar(img, lado)) is None:
+                    continue
+                for texto in _candidatos(b, nativo=not lado):
+                    if _es_qr(texto):
+                        return texto
     raise SinQR(f"No se encontró el QR del comparador en {ruta}")
 
 

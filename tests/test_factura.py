@@ -71,3 +71,16 @@ def test_un_qr_con_los_campos_de_la_resolucion_vale_aunque_cambie_el_host() -> N
     # su propio dominio, los campos siguen siendo los que fija la CNMC.
     otro = QR.replace("https://comparador.cnmc.gob.es/comparador", "https://otra.example/qr")
     assert desde_qr(otro).consumo_anual == (740, 660, 757)
+
+
+def test_escalar_lleva_la_pagina_al_lado_pedido_y_no_repite_el_nativo() -> None:
+    import numpy as np
+
+    from comparador_luz_gas.factura import _escalar
+
+    pagina = np.zeros((3508, 2480), dtype="uint8")
+    assert _escalar(pagina, 0) is pagina
+    assert _escalar(pagina, 3600) is None, "un 3 % de diferencia no merece otra pasada"
+    ampliada = _escalar(pagina, 7000)
+    assert ampliada is not None
+    assert max(ampliada.shape) == 7000
