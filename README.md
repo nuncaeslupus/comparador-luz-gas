@@ -6,6 +6,45 @@ y devuelve las ofertas ordenadas por precio, en JSON pensado para que lo consuma
 ```bash
 uv run comparador-luz-gas --cp 08026 --consumo 2600 --texto
 uv run comparador-luz-gas --cp 08026 --consumo 2600 --consumo-gas 6000 --suministro ambas
+uv run comparador-luz-gas --factura factura.pdf --texto   # saca los datos del QR
+```
+
+## Leer la factura: el QR, no el texto
+
+Desde la Resolución de la CNMC de 24/06/2021 (modificada por
+[BOE-A-2022-16989](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2022-16989)) **toda
+factura de electricidad lleva un QR** que apunta al comparador con el suministro ya
+desglosado:
+
+```
+https://comparador.cnmc.gob.es/comparador/QRE?cp=08026&pP1=4.6&pP2=4.6
+   &caP1=740&caP2=660&caP3=757&cups=ES00314058...&imp=72.5&prE1=0.228857...
+```
+
+Trae código postal, potencias contratadas, **consumo anual real por periodo**
+(punta/llano/valle), consumo del periodo facturado, precios e importe. Es decir,
+exactamente lo que el comparador necesita — y el formato lo fija la CNMC, no la
+comercializadora, así que **no hace falta un parser por compañía**.
+
+Tres puntos de entrada:
+
+```python
+from comparador_luz_gas import comparar, desde_fichero, desde_qr
+
+f = desde_fichero("factura.pdf")  # PDF o imagen: localiza y decodifica el QR
+f = desde_qr(texto_del_qr)  # si la app ya lo ha escaneado (sin dependencias)
+r = comparar(f.consulta())  # ofertas ordenadas por precio
+```
+
+`desde_qr()` es solo `urllib.parse`: una app que escanee el QR con la cámara puede
+mandarnos la cadena y saltarse por completo el extra de imagen. Desde el CLI,
+`--qr '<cadena>'`; con `--solo-datos` se imprimen los datos leídos sin consultar nada.
+
+Leer el QR de un fichero necesita el extra y `libzbar`:
+
+```bash
+uv sync --extra facturas   # pyzbar + pillow
+sudo apt install libzbar0 poppler-utils
 ```
 
 ## Qué cubre el comparador, y qué no
@@ -30,8 +69,10 @@ verificadas por la CNMC*, no *la mejor que existe*.
 
 ```bash
 make sync && make lint && make test
-make test-live   # consulta la API real
+make test-live       # consulta la API real
+make test-facturas   # lee el QR de los PDFs de data/facturas/, si los hay
 ```
 
 Las capturas HAR (`data/har/`) y las facturas (`data/facturas/`) están en `.gitignore`:
-pueden contener CUPS, dirección y consumos reales.
+pueden contener CUPS, dirección y consumos reales. Los tests versionados usan un QR
+inventado.

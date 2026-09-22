@@ -6,6 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.optional-dependencies]
+# Solo para leer el QR de un PDF/imagen. `desde_qr()` no las necesita.
+facturas = ["pyzbar>=0.1.9", "pillow>=10"]
+
 [project.scripts]
 comparador-luz-gas = "comparador_luz_gas.cli:main"
 
@@ -17,7 +21,7 @@ build-backend = "hatchling.build"
 packages = ["src/comparador_luz_gas"]
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "pyzbar>=0.1.9", "pillow>=10"]
 
 [tool.ruff]
 line-length = 100
@@ -41,4 +45,7 @@ warn_no_return = true
 show_error_codes = true
 
 [tool.pytest.ini_options]
-markers = ["live: consulta la API real de la CNMC"]
+markers = [
+    "live: consulta la API real de la CNMC",
+    "facturas: necesita PDFs reales en data/facturas/ (no versionados)",
+]

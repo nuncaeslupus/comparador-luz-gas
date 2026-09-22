@@ -1,4 +1,4 @@
-.PHONY: sync lint format test test-live clean update-skills
+.PHONY: sync lint format test test-live test-facturas clean update-skills
 
 sync:
 	uv sync
@@ -13,10 +13,14 @@ format:
 	uv run ruff check --fix .
 
 test:
-	uv run pytest -q -m "not live" $(filter-out $@,$(MAKECMDGOALS))
+	uv run pytest -q -m "not live and not facturas" $(filter-out $@,$(MAKECMDGOALS))
 
 test-live:
 	uv run pytest -q -m live
+
+# Facturas reales, no versionadas: se salta solo si data/facturas/ está vacío.
+test-facturas:
+	uv run pytest -q -m facturas
 
 clean:
 	rm -rf dist build .pytest_cache .mypy_cache .ruff_cache
