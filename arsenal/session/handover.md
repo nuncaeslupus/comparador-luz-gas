@@ -1,80 +1,77 @@
 # Session Handover
 
-**2026-09-23 (tarde).** `main` en `368e519`, CI en verde. PR abierto:
-[#9 docs: aclarar método y limitaciones](https://github.com/nuncaeslupus/comparador-luz-gas/pull/9)
-(rama `docs/metodo-y-limitaciones`, `d536d89`), sin mergear todavía.
+**2026-09-23 (noche).** `main` al día, CI en verde. Sesión centrada en el flujo de PR
+en sí (issue #10 / `t-0e31ff3e`), no en el comparador.
 
 ## Lo que se hizo
 
-Sobre el análisis de facturas de la sesión anterior, esta sesión añadió una **capa de
-interpretación a largo plazo** en `src/comparador_luz_gas/analisis.py`:
-
-- `coste(oferta, anios)`: primer año + (N-1) × segundo año — el descuento de
-  bienvenida se cobra una sola vez, así que el ranking por `importe_primer_anio` de la
-  CNMC no es el ranking a largo plazo.
-- `interpretar(resultado, anios=3)` separa dos decisiones que el ranking mezcla:
-  precio plano vs. discriminación horaria (`opciones.todas_las_horas_igual` /
-  `con_discriminacion_horaria`, con la diferencia ya calculada en `pregunta`), y dentro
-  de cada una, la mejor oferta sin restricción de nuevo cliente si la mejor a secas
-  exige serlo. Avisa de permanencia+penalización, servicios adicionales, PVPC vs. mejor
-  fija, y siempre cierra con que **el catálogo no lleva fechas**, así que no se puede
-  decir en qué mes conviene cambiar (confirmado por email de la CNMC vía una
-  [solicitud en datos.gob.es](https://datos.gob.es/es/solicitud-de-datos/historico-de-ofertas-del-comparador-de-ofertas-de-la-cnmc)).
-- Dos campos nuevos leídos de la respuesta cruda de la CNMC que antes se descartaban:
-  `validez` → `Oferta.solo_nuevos_clientes` (41/80 "cualquier consumidor", 14/80 "solo
-  nuevos clientes") e `importeEstimadoPenalizacion` → `Oferta.penalizacion_estimada`.
-- `factura.anualizar(facturas)`: extrapola a 12 meses una ventana corta de facturas
-  reales en vez de usar los 12 meses rodantes del QR (que arrastran consumo de hace un
-  año). Útil cuando el consumo del usuario está cambiando.
-- CLI: flag `--anios` (por defecto 3); la clave `"analisis"` del JSON y el resumen en
-  modo `--texto` salen de `interpretar()`.
-- README: sección "Valoración a largo plazo, sin LLM", y "Método y limitaciones"
-  (sustituye a "Qué cubre el comparador, y qué no" ampliándola): dejar explícito que
-  todo sale de la API de la CNMC sin estimación propia, impuestos sin desglosar, sin
-  histórico, y — a raíz de una pregunta del usuario sobre su antigua "tarifa 8 horas"
-  — que el reparto punta/llano/valle usado para valorar ofertas horarias asume los
-  tramos regulados desde la Resolución de 24/06/2021 (valle 0-8h fijo); facturas de
-  tarifas de discriminación horaria anteriores, donde el valle lo elegía el cliente o
-  la comercializadora, no representan bien cómo caería ese consumo en los tramos de
-  hoy.
-- Corregido de paso: el README decía "CNMV" (regulador bursátil) en vez de CNMC.
-
-**Aplicado al caso real del usuario** (no versionado, CP real usado en memoria, nunca
-escrito a fichero): con su consumo real, PVPC gana por 15-19 €/año a la mejor fija
-(TRACTAMENT, sin permanencia ni restricción de nuevo cliente, pero horaria). Recomendado
-TRACTAMENT como opción sin riesgo de variabilidad, con el aviso de que su gap con PVPC es
-pequeño y de que la comparación horaria depende de su reparto real, que en su caso viene
-de facturas ya bajo los tramos regulados de 2021 (no de la tarifa 8 horas antigua).
+- Fusionados [PR #9](https://github.com/nuncaeslupus/comparador-luz-gas/pull/9)
+  (ampliar "Método y limitaciones" en el README, corrigiendo también la referencia
+  normativa de los tramos 2.0TD: es la Circular 3/2020 desde el 1/06/2021, no la
+  Resolución de 24/06/2021 — Ceuta y Melilla tienen horarios distintos) y
+  [PR #11](https://github.com/nuncaeslupus/comparador-luz-gas/pull/11) (branch
+  protection en `main`, `merge-policy = "after-ci-and-review"`,
+  `host-gate = "make lint test"`, y la sección "Flujo de trabajo de este repo" en
+  CLAUDE.md: PR siempre obligatorio, y no dar un PR por listo hasta que el/los check(s)
+  de revisión configurados hayan reportado, no solo el CI).
+- Issue #10 cerrado por el merge de #11. `t-0e31ff3e` archivado en
+  `arsenal/tasks/_history/` con `status: merged` en esta misma sesión (el merge de
+  PR #11 fue manual, no vía `open_task_pr.sh`, así que no se archivó solo —
+  `query_status.py` lo señaló).
+- Filed upstream: [claude-arsenal#461](https://github.com/nuncaeslupus/claude-arsenal/issues/461)
+  — `init.py` no configura branch protection ni fuerza elegir `merge-policy`/`host-gate`
+  a propósito, así que el trabajo ad hoc esquiva el flujo de PR sin que nadie lo note.
+  PR #11 en este repo es el caso concreto y el arreglo manual de referencia.
+- **CodeRabbit en el plan gratuito de OSS aplica rate-limit compartido a nivel de repo,
+  no por PR**: disparar `@coderabbitai review` en un PR puede dejar rate-limited también
+  al otro. El aviso de "vuelve a intentarlo en 40 minutos" no fue fiable — pasado ese
+  tiempo y re-disparando, seguía rate-limited (posible que cada intento manual reinicie
+  el contador). Con la review inalcanzable y el CI en verde, se hizo una revisión propia
+  antes de mergear (diff a mano, `make lint && make test` en worktrees aislados de cada
+  rama, re-verificación del gate) y se fusionó — con autorización explícita del usuario
+  para este caso.
+- `gh pr merge` puede fallar con "N of N required status checks are expected" cuando el
+  otro required check (aquí CodeRabbit) sigue en estado no-terminal a ojos de GitHub
+  aunque `gh pr checks` ya lo enseñe como `pass`; y tras fusionar un PR, el segundo puede
+  quedar `mergeStateStatus: BEHIND` por `required_status_checks.strict`. Se resuelve con
+  `gh api -X PUT repos/.../pulls/<n>/update-branch` y esperando a que el CI vuelva a
+  correr sobre la rama actualizada.
 
 ## Decisiones que conviene no deshacer
 
-- **`_rotacion()` da 1 oferta de nuevo cliente por comercializadora, no repetible.**
-  Rotar exige ser cliente nuevo cada vez, así que una comercializadora solo cuenta una
-  vez en el horizonte de años. (Corregí en la propia sesión una primera estimación que
-  multiplicaba la misma oferta ×3, imposible.)
-- **`_pregunta()` (plana vs. horaria) se calcula siempre con el reparto de la consulta
-  actual**, nunca con un perfil genérico — si el usuario piensa mover consumo, tiene
-  que repetir la consulta con `--franjas`, no fiarse del resultado guardado.
-- **Modo factura no proyecta a varios años** (`interpretar()` devuelve solo `"nota"`):
-  los importes de ese modo son de un periodo, no de un año.
-- Ver también las decisiones de la sesión del QR en el historial de este mismo fichero
-  (git log), sobre los dos decodificadores y los `_LADOS` de reintento — siguen vigentes,
-  no se tocaron esta sesión.
+- **Ningún cambio va directo a `main`, ni siquiera trivial** (docs, handover, archivar
+  una tarea): rama + PR siempre, incluida esta actualización de handover. Ver la sección
+  "Flujo de trabajo de este repo" en CLAUDE.md.
+- **`merge-policy = "after-ci-and-review"` es la política activa.** La revisión propia
+  (diff a mano + tests en local en un worktree aislado) **no sustituye el check
+  requerido de CodeRabbit en branch protection** — GitHub sigue exigiendo que ese check
+  llegue a un estado no-pendiente por su cuenta (aunque sea un "pass" de rate-limit) para
+  que el merge sea siquiera posible; sin eso, `gh pr merge` falla igualmente. Lo que la
+  revisión propia sustituye es nuestra propia barra de calidad — "que alguien de verdad
+  haya mirado el diff" — cuando el contenido de ese check no es una revisión genuina.
+  Solo hacerlo con autorización explícita del usuario para ese caso concreto, no por
+  defecto.
+- Ver también las decisiones de sesiones anteriores en el historial de este mismo
+  fichero (git log): la capa de interpretación a largo plazo, el modo factura vs. anual,
+  los dos decodificadores de QR — no se tocó nada de eso esta sesión.
 
 ## Estado de la cola
 
 - `t-11b25b34` (issue #1) sigue abierta, `requires: [access:human]`. Queda: el QR de la
   **factura de gas** (¿existe un equivalente al `QRE`?) y validar el de luz con **otra
   comercializadora** (basta una factura de Endesa, Naturgy o Repsol).
+- `query_status.py` señala además, sin relación con esta sesión: tres tareas ya
+  archivadas en `_history/` (`t-9424cd64`, `t-bd7620cc`, `t-f189cdd5`) no llevan
+  `status: merged` en su front matter, así que el script las reporta como "todavía
+  vivas" pese a estar en `_history/`. Es drift preexistente, no tocado — arreglarlo es
+  añadir esa línea a las tres.
+- `query_status.py` también avisa de una convención de prioridad mixta (tareas con la
+  escala de tamaño 10/5/1/0 mezcladas con otras 9/8/7/3) — preexistente, no tocado.
 - Pendiente de confirmar con la comercializadora, no del código: si `importe_primer_anio`
   lleva IVA. La respuesta cruda no trae ningún campo de impuestos.
-- Ofrecido y no aceptado: un cron que capture el catálogo de la CNMC mensualmente, para
-  que la pregunta "¿en qué mes conviene cambiar?" tenga respuesta dentro de ~12 meses.
-- PR #9 sin mergear — solo README, sin cambios de código ni de tests.
+- Ofrecido y no aceptado: un cron que capture el catálogo de la CNMC mensualmente.
 
 ## Privacidad
 
-`data/facturas/` y `data/har/` siguen en `.gitignore`. El CP real del usuario (para las
-consultas de recomendación de esta sesión) se usó solo en comandos sueltos, nunca escrito
-a un fichero del repo — comprobado con `grep` antes de cada commit. Los ejemplos del
-README y del código siguen usando CP 28013 y un CUPS inventado.
+`data/facturas/` y `data/har/` siguen en `.gitignore`. Nada de esta sesión ha tocado
+facturas ni datos reales del usuario.
