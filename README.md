@@ -175,15 +175,30 @@ for aviso in a["avisos"]:
     print("-", aviso)
 ```
 
-Devuelve el coste a N años de cada oferta (`primer_anio + (N-1) × siguientes`), la mejor
-quedándote, y la alternativa de **rotar ofertas de nuevo cliente** — una comercializadora
-por año, porque nadie estrena dos veces la misma —, más avisos derivados de los datos:
-permanencia y su penalización estimada, servicios adicionales, y el PVPC frente a la mejor
-fija.
+Devuelve el coste a N años de cada oferta (`primer_anio + (N-1) × siguientes`) y, sobre
+todo, **separa las dos decisiones que el ranking mezcla**:
+
+- `opciones.todas_las_horas_igual` vs `opciones.con_discriminacion_horaria`, con la
+  diferencia ya calculada en `pregunta` — es lo que hay que preguntarle al usuario antes
+  de recomendarle nada, porque una oferta por tramos solo compensa si va a mover consumo.
+- Dentro de cada una, `sin_restriccion_de_nuevo_cliente`: la mejor que también puede
+  contratar quien ya es cliente de esa comercializadora.
+
+Más avisos derivados de los datos: permanencia y su penalización estimada, servicios
+adicionales, y el PVPC frente a la mejor fija.
+
+Un detalle que conviene no perder de vista: **las ofertas por tramos se valoran con tu
+reparto punta/llano/valle actual**. Para saber si te compensaría mover consumo, repite la
+consulta con el reparto que esperas tener (`--franjas`). En un caso real, mover 150 kWh al
+año de punta a valle movía la mejor horaria de 660 € a 639 €: 8 € por debajo de la mejor
+plana, después de reorganizar un año entero de lavadoras.
 
 Lo que **no** hace, porque los datos no dan para ello: decir en qué mes del año conviene
 cambiar. El catálogo no lleva fechas de alta ni de caducidad de las ofertas, solo el tipo
-de cliente que admiten, así que el momento lo marca tu permanencia y no el mercado.
+de cliente que admiten, y la CNMC no publica el histórico del comparador — hay una
+[solicitud abierta en datos.gob.es](https://datos.gob.es/es/solicitud-de-datos/historico-de-ofertas-del-comparador-de-ofertas-de-la-cnmc)
+desde septiembre de 2025, respondida con que esos datos no están en el catálogo de datos
+abiertos. El momento lo marca tu permanencia, no el mercado.
 
 ### Consumo: la ventana importa
 

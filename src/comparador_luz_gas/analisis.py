@@ -50,6 +50,27 @@ def _resumen(o: Oferta, anios: int) -> dict[str, Any]:
         "permanencia": o.permanencia,
         "penalizacion_estimada": o.penalizacion_estimada,
         "solo_nuevos_clientes": o.solo_nuevos_clientes,
+        "precio_unico": o.precio_unico,
+    }
+
+
+def _opcion(pool: list[Oferta], anios: int) -> dict[str, Any] | None:
+    """La mejor de ese grupo y, si es de nuevo cliente, la mejor que no lo es.
+
+    «Solo nuevos clientes» quiere decir que no la puedes contratar si ya eres
+    cliente de esa comercializadora, así que quien vuelva a una que ya tuvo
+    necesita la segunda.
+    """
+    if not pool:
+        return None
+    mejor = min(pool, key=lambda o: coste(o, anios))
+    libres = [o for o in pool if not o.solo_nuevos_clientes]
+    alt = min(libres, key=lambda o: coste(o, anios)) if libres else None
+    return {
+        "mejor": _resumen(mejor, anios),
+        "sin_restriccion_de_nuevo_cliente": (
+            _resumen(alt, anios) if alt is not None and alt is not mejor else None
+        ),
     }
 
 
@@ -69,6 +90,10 @@ def interpretar(r: Resultado, anios: int = 3) -> dict[str, Any]:
     primer = min(fijas, key=lambda o: o.importe_primer_anio)
     pvpc = next((o for o in r.ofertas if o.importe_segundo_anio <= 0), None)
 
+    # La pregunta que decide la mitad del resultado: precio plano o por tramos.
+    plana = _opcion([o for o in fijas if o.precio_unico], anios)
+    horaria = _opcion([o for o in fijas if not o.precio_unico], anios)
+
     rota = _rotacion(fijas, anios)
     # Los años que la rotación no cubre se pagan a precio estable: quedarse es lo
     # que queda cuando ya has sido cliente nuevo de todas las que lo ofrecen.
@@ -76,6 +101,18 @@ def interpretar(r: Resultado, anios: int = 3) -> dict[str, Any]:
     coste_rotar = sum(o.importe_primer_anio for o in rota) + resto * quedarse.importe_segundo_anio
 
     avisos = []
+    if quedarse.solo_nuevos_clientes:
+        libre = next((o for o in largo if not o.solo_nuevos_clientes), None)
+        avisos.append(
+            f"La mejor a {anios} años es solo para nuevos clientes: no la puedes contratar si "
+            f"ya eres cliente de {quedarse.comercializadora}."
+            + (
+                f" Sin esa restricción lo mejor es {libre.comercializadora} «{libre.oferta}», "
+                f"{coste(libre, anios) - coste(quedarse, anios):.2f} € más a {anios} años."
+                if libre
+                else ""
+            )
+        )
     if primer.importe_primer_anio < quedarse.importe_primer_anio:
         avisos.append(
             f"La más barata a un año ({primer.comercializadora}, {primer.oferta}) cuesta "
@@ -83,6 +120,11 @@ def interpretar(r: Resultado, anios: int = 3) -> dict[str, Any]:
             f"después: a {anios} años son {coste(primer, anios):.2f} €, "
             f"{coste(primer, anios) - coste(quedarse, anios):.2f} € más que quedarse con la mejor."
         )
+    avisos.append(
+        "Las ofertas con discriminación horaria están valoradas con TU reparto punta/llano/valle "
+        "actual. Si piensas mover consumo al valle, vuelve a consultar con el reparto que "
+        "esperas tener: es lo único que cambia su posición."
+    )
     if quedarse.permanencia:
         avisos.append(
             f"La mejor a {anios} años tiene permanencia"
@@ -113,34 +155,42 @@ def interpretar(r: Resultado, anios: int = 3) -> dict[str, Any]:
         )
     avisos.append(
         "No se puede decir en qué mes conviene cambiar: el catálogo de la CNMC no lleva "
-        "fechas de alta ni de caducidad de las ofertas, solo el tipo de cliente que admiten. "
-        "El momento lo marca tu permanencia, no el mercado."
+        "fechas de alta ni de caducidad de las ofertas, solo el tipo de cliente que admiten, "
+        "y la CNMC no publica el histórico. El momento lo marca tu permanencia, no el mercado."
     )
 
-    ahorro = coste(quedarse, anios) - coste_rotar
     return {
         "horizonte_anios": anios,
+        "pregunta": _pregunta(plana, horaria),
+        "opciones": {"todas_las_horas_igual": plana, "con_discriminacion_horaria": horaria},
         "mejor_a_largo_plazo": _resumen(quedarse, anios),
         "ranking_a_largo_plazo": [_resumen(o, anios) for o in largo[:5]],
         "rotar_nuevo_cliente": {
             "coste_total": round(coste_rotar, 2),
-            "ahorro_frente_a_quedarse": round(ahorro, 2),
+            "ahorro_frente_a_quedarse": round(coste(quedarse, anios) - coste_rotar, 2),
             "anios_cubiertos": len(rota),
             "cambios": [{"comercializadora": o.comercializadora, "oferta": o.oferta} for o in rota],
         },
         "avisos": avisos,
         "resumen": (
-            f"A {anios} años, lo más barato quedándote es {quedarse.comercializadora} "
-            f"«{quedarse.oferta}»: {coste(quedarse, anios):.2f} € "
-            f"({quedarse.importe_segundo_anio:.2f} €/año en régimen). "
-            f"Cambiando de comercializadora cada año para cobrar el descuento de nuevo cliente "
-            f"saldría por {coste_rotar:.2f} €, {abs(ahorro):.2f} € "
-            f"{'menos' if ahorro > 0 else 'más'}"
-            + (
-                f", y solo hay {len(rota)} comercializadoras con oferta de nuevo cliente, "
-                f"así que la rotación se agota ahí."
-                if len(rota) < anios
-                else "."
-            )
+            f"A {anios} años, lo más barato es {quedarse.comercializadora} «{quedarse.oferta}»: "
+            f"{coste(quedarse, anios):.2f} € ({quedarse.importe_segundo_anio:.2f} €/año en "
+            f"régimen). {_pregunta(plana, horaria)}"
         ),
     }
+
+
+def _pregunta(plana: dict[str, Any] | None, horaria: dict[str, Any] | None) -> str:
+    """Lo que hay que preguntarle al usuario, ya con la diferencia calculada."""
+    if not (plana and horaria):
+        return "Solo hay ofertas de un tipo: no hay nada que elegir entre precio plano y tramos."
+    a, b = plana["mejor"], horaria["mejor"]
+    dif = b["coste_total"] - a["coste_total"]
+    gana, pierde = (a, b) if dif > 0 else (b, a)
+    tipo = "el precio igual a todas horas" if dif > 0 else "la discriminación horaria"
+    return (
+        f"¿Prefieres pagar lo mismo a cualquier hora o puedes concentrar el consumo en las horas "
+        f"baratas? Con tu reparto actual gana {tipo} por {abs(dif):.2f} €: "
+        f"{gana['comercializadora']} «{gana['oferta']}» {gana['coste_total']:.2f} € frente a "
+        f"{pierde['comercializadora']} «{pierde['oferta']}» {pierde['coste_total']:.2f} €."
+    )

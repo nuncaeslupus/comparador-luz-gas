@@ -29,7 +29,7 @@ def test_el_descuento_de_bienvenida_no_gana_a_largo_plazo() -> None:
 
     assert coste(barata_un_anio, 3) == 700
     assert a["mejor_a_largo_plazo"]["comercializadora"] == "Sosa"
-    assert "Gancho" in a["avisos"][0]
+    assert any("Gancho" in x for x in a["avisos"])
 
 
 def test_la_rotacion_gasta_una_comercializadora_por_anio() -> None:
@@ -54,7 +54,7 @@ def test_el_pvpc_no_entra_en_la_proyeccion() -> None:
     a = interpretar(_resultado(_o("PVPC", 50, 0), _o("Sosa", 200, 200)), anios=3)
 
     assert a["mejor_a_largo_plazo"]["comercializadora"] == "Sosa"
-    assert "más barato" in a["avisos"][0]
+    assert any("más barato" in x for x in a["avisos"])
 
 
 def test_en_modo_factura_no_se_proyecta_nada() -> None:
@@ -69,3 +69,37 @@ def test_en_modo_factura_no_se_proyecta_nada() -> None:
 
     assert "no aplica" in a["nota"]
     assert "mejor_a_largo_plazo" not in a
+
+
+def test_se_separan_precio_unico_y_discriminacion_horaria() -> None:
+    plana = _o("Plana", 300, 300, precio_unico=True)
+    r = _resultado(plana, _o("Tramos", 250, 250, precio_unico=False))
+    op = interpretar(r, anios=3)["opciones"]
+
+    assert op["todas_las_horas_igual"]["mejor"]["comercializadora"] == "Plana"
+    assert op["con_discriminacion_horaria"]["mejor"]["comercializadora"] == "Tramos"
+    # Con este reparto gana la horaria, y la pregunta lo dice con la diferencia.
+    assert "150.00 €" in interpretar(r, anios=3)["pregunta"]
+
+
+def test_si_la_mejor_es_de_nuevo_cliente_se_da_una_alternativa() -> None:
+    r = _resultado(
+        _o("Gancho", 100, 100, precio_unico=True, solo_nuevos_clientes=True),
+        _o("Abierta", 200, 200, precio_unico=True),
+    )
+    a = interpretar(r, anios=3)
+    op = a["opciones"]["todas_las_horas_igual"]
+
+    assert op["mejor"]["comercializadora"] == "Gancho"
+    assert op["sin_restriccion_de_nuevo_cliente"]["comercializadora"] == "Abierta"
+    assert any("ya eres cliente de Gancho" in x for x in a["avisos"])
+
+
+def test_sin_restriccion_es_none_cuando_la_mejor_ya_es_para_todos() -> None:
+    r = _resultado(_o("Abierta", 100, 100, precio_unico=True))
+    assert (
+        interpretar(r, anios=3)["opciones"]["todas_las_horas_igual"][
+            "sin_restriccion_de_nuevo_cliente"
+        ]
+        is None
+    )
