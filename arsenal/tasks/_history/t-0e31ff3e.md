@@ -3,6 +3,7 @@ id: t-0e31ff3e
 title: "Flujo de PR obligatorio: branch protection, CI y revisi\u00f3n de bot"
 priority: 10
 tags: [INFRA]
+status: merged
 ---
 
 Se detectó que casi todo el historial de este repo se subió directo a \`main\` sin PR
