@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 BASE = "https://comparador.cnmc.gob.es/api/publico"
@@ -133,6 +134,30 @@ class Consulta:
     permanencia: int = 2
     servicios_adicionales: int = 2
     revision_precios: int = 2
+    # Modo factura ("mensual" en la web): en vez del coste anual estimado, la
+    # CNMC calcula lo que habría costado *este* periodo de facturación con cada
+    # oferta, con sus fechas reales. `consumo_anual_luz` sigue siendo el anual
+    # (va como `consumoAnualEOrig`); el del periodo va aquí.
+    consumo_factura: tuple[float, float, float] | None = None
+    consumo_factura_gas: float = 0.0
+    inicio_factura: str = ""  # ISO YYYY-MM-DD, tal como lo da el QR
+    fin_factura: str = ""
+    fecha_factura: str = ""
+
+    def __post_init__(self) -> None:
+        if self.consumo_factura is None:
+            return
+        if not (self.inicio_factura and self.fin_factura):
+            raise ValueError("el modo factura necesita inicio_factura y fin_factura")
+        if self.suministro in ("gas", "ambas") and not self.consumo_factura_gas:
+            raise ValueError(
+                "el modo factura con gas necesita consumo_factura_gas: el QR normativo "
+                "es solo de electricidad, así que el consumo de gas del periodo hay que darlo"
+            )
+
+    @property
+    def modo(self) -> str:
+        return "factura" if self.consumo_factura is not None else "anual"
 
     def reparto(self) -> tuple[float, float, float]:
         if self.franjas is not None:
@@ -156,6 +181,16 @@ class Oferta:
     id_oferta: int
 
 
+_IMPORTES = {
+    "anual": "importe_primer_anio / importe_segundo_anio son el coste estimado de 12 meses.",
+    "factura": (
+        "importe_primer_anio / importe_segundo_anio son el coste de ESE periodo de "
+        "facturación, no de un año: compáralos con lo que pagaste en esa factura. El "
+        "segundo es el mismo periodo ya sin descuentos de bienvenida."
+    ),
+}
+
+
 @dataclass(frozen=True)
 class Resultado:
     consulta: dict[str, Any]
@@ -166,9 +201,12 @@ class Resultado:
     # Solo con suministro="ambas": la CNMC devuelve también la mejor oferta suelta
     # de luz y la de gas, que a menudo salen más baratas que el paquete dual.
     alternativa_por_separado: dict[str, Any] | None = None
+    modo: str = "anual"
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "modo": self.modo,
+            "importes": _IMPORTES[self.modo],
             "consulta": self.consulta,
             "cobertura": {
                 "aviso": self.aviso_cobertura,
@@ -194,6 +232,15 @@ def _oferta(o: dict[str, Any]) -> Oferta:
         precio_unico=o.get("tienePrecioUnico") == "S",
         id_oferta=o["id"],
     )
+
+
+def _ms(fecha: str) -> int:
+    """Fecha ISO a milisegundos de epoch, que es como las manda el formulario.
+
+    ponytail: el frontend manda medianoche de Madrid; aquí va la de UTC, que cae
+    el mismo día natural se lea el epoch en UTC o en Madrid. Nos ahorra zoneinfo.
+    """
+    return int(datetime.strptime(fecha, "%Y-%m-%d").replace(tzinfo=UTC).timestamp() * 1000)
 
 
 def _params(c: Consulta) -> dict[str, str]:
@@ -230,6 +277,25 @@ def _params(c: Consulta) -> dict[str, str]:
     for k in _CAMPOS_A_CERO:
         p[k] = 0
     p["cups"] = "0000"
+    if c.consumo_factura is not None:
+        # El "Orig" se queda con el anual y el consumo pasa a ser el del periodo.
+        # En este modo la API responde 400 si el total o las franjas llevan
+        # decimales, y el QR los da con dos (47.57 kWh), así que se redondean con
+        # el valle absorbiendo la diferencia para no inventar ni perder kWh.
+        g1, g2, g3 = c.consumo_factura
+        total = round(g1 + g2 + g3)
+        g1, g2 = round(g1), round(g2)
+        p |= {
+            "factura": "true",
+            "consumoAnualE": total,
+            "consumoPrimeraFranja": g1,
+            "consumoSegundaFranja": g2,
+            "consumoTerceraFranja": total - g1 - g2,
+            "consumoAnualG": c.consumo_factura_gas,
+            "dateInicio": _ms(c.inicio_factura),
+            "dateFin": _ms(c.fin_factura),
+            "fFact": _ms(c.fecha_factura or c.fin_factura),
+        }
     return {k: str(v) for k, v in p.items()}
 
 
@@ -277,11 +343,25 @@ def parsear(payload: dict[str, Any], c: Consulta) -> Resultado:
             "consumo_anual_gas": c.consumo_anual_gas,
             "potencia": c.potencia,
             "reparto_franjas": list(c.reparto()),
+            **(
+                {
+                    "periodo": {
+                        "inicio": c.inicio_factura,
+                        "fin": c.fin_factura,
+                        "fecha_factura": c.fecha_factura,
+                        "consumo_luz": round(sum(c.consumo_factura), 2),
+                        "consumo_gas": c.consumo_factura_gas,
+                    }
+                }
+                if c.consumo_factura is not None
+                else {}
+            ),
         },
         ofertas=ofertas,
         comercializadoras=nombres,
         grandes_ausentes=ausentes,
         alternativa_por_separado=sueltas,
+        modo=c.modo,
     )
 
 

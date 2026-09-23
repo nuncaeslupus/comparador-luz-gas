@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -93,3 +94,50 @@ def test_conjuntas_separa_el_paquete_dual_de_las_ofertas_sueltas() -> None:
 def test_las_consultas_de_un_solo_suministro_no_traen_alternativa() -> None:
     r = parsear(FIXTURE, Consulta(codigo_postal="28001", consumo_anual_luz=2500))
     assert r.alternativa_por_separado is None
+
+
+def test_modo_factura_manda_el_periodo_y_deja_el_anual_en_orig() -> None:
+    # Valores de una captura del comparador en modo "mensual": el consumo pasa a
+    # ser el del periodo y el anual se conserva en los campos "Orig".
+    c = Consulta(
+        codigo_postal="28013",
+        consumo_anual_luz=2600,
+        # Con los decimales que da el QR: en este modo la API los rechaza, así que
+        # tienen que salir enteros y seguir sumando el total.
+        consumo_factura=(47.57, 38.6, 59.57),
+        inicio_factura="2026-08-23",
+        fin_factura="2026-09-23",
+    )
+    p = _params(c)
+    assert c.modo == "factura"
+    assert p["factura"] == "true"
+    assert (p["consumoAnualE"], p["consumoAnualEOrig"]) == ("146", "2600")
+    franjas = [int(p[f"consumo{n}Franja"]) for n in ("Primera", "Segunda", "Tercera")]
+    assert franjas == [48, 39, 59]
+    assert sum(franjas) == int(p["consumoAnualE"])
+    fechas = [
+        datetime.fromtimestamp(int(p[k]) / 1000, UTC).date().isoformat()
+        for k in ("dateInicio", "dateFin", "fFact")
+    ]
+    # fFact no se dio: cae en el fin del periodo, como hace el formulario.
+    assert fechas == ["2026-08-23", "2026-09-23", "2026-09-23"]
+
+
+def test_sin_modo_factura_no_se_cuelan_las_fechas() -> None:
+    p = _params(Consulta(codigo_postal="28013", consumo_anual_luz=2600))
+    assert p["factura"] == "false"
+    assert "dateInicio" not in p and "fFact" not in p
+
+
+def test_el_modo_factura_exige_fechas_y_gas_propio() -> None:
+    with pytest.raises(ValueError, match="inicio_factura"):
+        Consulta(codigo_postal="28013", consumo_factura=(64, 54, 103))
+    with pytest.raises(ValueError, match="consumo_factura_gas"):
+        Consulta(
+            codigo_postal="28013",
+            suministro="ambas",
+            consumo_anual_gas=6000,
+            consumo_factura=(64, 54, 103),
+            inicio_factura="2026-08-23",
+            fin_factura="2026-09-23",
+        )

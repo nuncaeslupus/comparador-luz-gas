@@ -12,8 +12,9 @@ from comparador_luz_gas.factura import Factura, desde_fichero, desde_qr
 
 
 def _tabla(r: Resultado, top: int) -> str:
+    a, b = ("periodo", "sin dto.") if r.modo == "factura" else ("1er año", "2º año")
     lineas = [
-        f"{'1er año':>9} {'2º año':>9}  {'comercializadora':38} oferta",
+        f"{a:>9} {b:>9}  {'comercializadora':38} oferta",
         "-" * 100,
     ]
     lineas += [
@@ -51,6 +52,12 @@ def main(argv: list[str] | None = None) -> int:
         "--solo-datos",
         action="store_true",
         help="con --factura/--qr, imprime los datos leídos y no consulta la CNMC",
+    )
+    p.add_argument(
+        "--mensual",
+        action="store_true",
+        help="calcula el coste de ese periodo de facturación en vez del anual "
+        "(necesita --factura/--qr: las fechas y el consumo del periodo los da el QR)",
     )
     p.add_argument("--suministro", choices=["luz", "gas", "ambas"], default="luz")
     p.add_argument(
@@ -94,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
         # Reparto real de la factura; si han forzado otro consumo, ya no cuadra.
         franjas = factura.consumo_anual
 
+    if a.mensual and not factura:
+        p.error("--mensual necesita --factura o --qr: el periodo y sus fechas los da el QR")
+
     r = comparar(
         Consulta(
             codigo_postal=cp,
@@ -104,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
             franjas=franjas,
             vivienda=not a.empresa,
             permanencia=1 if a.sin_permanencia else 2,
+            **(factura.periodo if a.mensual and factura else {}),
         )
     )
     if a.texto:
@@ -112,7 +123,8 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"Factura{fecha}: {factura.consumo_anual_total:.0f} kWh/año, "
                 f"{factura.potencia} kW, CP {factura.codigo_postal}. "
-                f"Importe del periodo: {factura.importe:.2f} €.\n"
+                f"Periodo {factura.inicio_factura}→{factura.fin_factura}: "
+                f"{sum(factura.consumo_factura):.0f} kWh, pagaste {factura.importe:.2f} €.\n"
             )
         print(_tabla(r, a.top))
     else:

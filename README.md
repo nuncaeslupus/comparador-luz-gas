@@ -6,7 +6,8 @@ y devuelve las ofertas ordenadas por precio, en JSON pensado para que lo consuma
 ```bash
 uv run comparador-luz-gas --cp 28013 --consumo 2600 --texto
 uv run comparador-luz-gas --cp 28013 --consumo 2600 --consumo-gas 6000 --suministro ambas
-uv run comparador-luz-gas --factura factura.pdf --texto   # saca los datos del QR
+uv run comparador-luz-gas --factura factura.pdf --texto             # saca los datos del QR
+uv run comparador-luz-gas --factura factura.pdf --mensual --texto   # coste de esa factura
 ```
 
 ## Leer la factura: el QR, no el texto
@@ -46,6 +47,34 @@ Leer el QR de un fichero necesita el extra y `libzbar`:
 uv sync --extra facturas   # pyzbar + opencv-python-headless
 sudo apt install libzbar0 poppler-utils
 ```
+
+### Anual o factura a factura
+
+Por defecto la CNMC estima el **coste de doce meses** a partir del consumo anual
+que trae el QR. Con `--mensual` (`Factura.consulta(mensual=True)`) calcula en su
+lugar lo que habría costado **ese periodo de facturación concreto** con cada
+oferta, usando las fechas y el consumo reales de la factura. El resultado sale
+en la misma escala que el importe que pone la factura, así que se comparan
+directamente:
+
+```
+Periodo 2026-07-14→2026-08-16: 146 kWh, pagaste 72.50 €.
+
+  periodo  sin dto.  comercializadora                       oferta
+    40.03     51.03  CIDE HCENERGÍA S.A.U                   Plan Estrella Dúo
+    47.20     47.20  TRACTAMENT I SELECCIÓ DE RESIDUS, S.A. TARIFA FIJA CLÁSICA - 2.0TD
+```
+
+Dos avisos al leer esa comparación:
+
+- El importe de la factura incluye conceptos que el comparador no cuenta —
+  servicios adicionales (mantenimiento), alquiler de equipos, bono social. El QR
+  los desglosa (`impSA`, `finBS`), así que réstalos antes de comparar.
+- La segunda columna es el **mismo periodo sin descuentos de bienvenida**, no un
+  segundo año. Para el PVPC sale 0: no tiene promoción que quitar.
+
+El JSON marca el modo en `"modo"` y explica la escala de los importes en
+`"importes"`, para que un LLM no lea un mes como si fuera un año.
 
 ### ¿Y una factura escaneada?
 

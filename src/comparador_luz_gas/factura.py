@@ -76,8 +76,23 @@ class Factura:
         """La que pide el comparador: la mayor de las dos contratadas."""
         return max(self.potencia_p1, self.potencia_p2)
 
-    def consulta(self, **extra: Any) -> Consulta:
-        """Consulta lista para `comparar()`, con el reparto real por franjas."""
+    @property
+    def periodo(self) -> dict[str, Any]:
+        """Campos del modo factura de `Consulta`: consumo y fechas de este periodo."""
+        return {
+            "consumo_factura": self.consumo_factura,
+            "inicio_factura": self.inicio_factura,
+            "fin_factura": self.fin_factura,
+            "fecha_factura": self.fecha_factura,
+        }
+
+    def consulta(self, *, mensual: bool = False, **extra: Any) -> Consulta:
+        """Consulta lista para `comparar()`, con el reparto real por franjas.
+
+        Con `mensual=True` la CNMC calcula el coste de *este* periodo de
+        facturación en vez del anual estimado, así que el resultado es
+        directamente comparable con el importe que pone la factura.
+        """
         campos: dict[str, Any] = {
             "codigo_postal": self.codigo_postal,
             "consumo_anual_luz": self.consumo_anual_total,
@@ -85,6 +100,8 @@ class Factura:
             "suministro": "luz",
             "franjas": self.consumo_anual,
         }
+        if mensual:
+            campos |= self.periodo
         return Consulta(**(campos | extra))
 
 
