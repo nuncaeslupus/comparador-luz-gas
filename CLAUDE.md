@@ -21,3 +21,21 @@ Every session, without waiting to be asked:
 
 @claude-arsenal/AGENTS.md
 <!-- /claude-arsenal: auto-managed -->
+
+## Flujo de trabajo de este repo
+
+**Ningún cambio se sube directo a `main`, ni siquiera uno trivial (docs, handover).**
+Siempre rama + PR. `main` tiene branch protection: exige PR, que pase el CI (`test`) y
+que reporte cualquier check de revisión que el repo tenga configurado; sin eso, ni
+siquiera un admin puede mergear (`enforce_admins`).
+
+Antes de mergear, comprueba qué bots de revisión están activos en el repo (no asumas
+cuáles — cada repo puede tener otros, o ninguno) y aprovecha sus reglas:
+
+- Si un bot no ha comentado ni dejado check en el PR, puede que no se dispare solo.
+  P. ej. **CodeRabbit no revisa automáticamente repos con pocas estrellas** en el plan
+  gratuito; pídeselo a mano comentando `@coderabbitai review` (o `full review`) en el PR.
+  Otros bots tendrán sus propios disparadores — descúbrelos antes de asumir que "no hay
+  bot" cuando puede que solo haga falta pedírselo.
+- No des un PR por listo hasta que el/los check(s) de revisión configurados hayan
+  reportado, no solo el CI.
