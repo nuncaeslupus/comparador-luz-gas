@@ -42,11 +42,15 @@ en sí (issue #10 / `t-0e31ff3e`), no en el comparador.
 - **Ningún cambio va directo a `main`, ni siquiera trivial** (docs, handover, archivar
   una tarea): rama + PR siempre, incluida esta actualización de handover. Ver la sección
   "Flujo de trabajo de este repo" en CLAUDE.md.
-- **`merge-policy = "after-ci-and-review"` es la política activa**, pero cuando la
-  revisión del bot configurado es genuinamente inalcanzable (rate-limit, no un fallo del
-  propio PR), sustituirla por una revisión propia (diff a mano + tests en local en un
-  worktree aislado) es aceptable si el usuario lo autoriza explícitamente para ese caso —
-  no asumirlo por defecto.
+- **`merge-policy = "after-ci-and-review"` es la política activa.** La revisión propia
+  (diff a mano + tests en local en un worktree aislado) **no sustituye el check
+  requerido de CodeRabbit en branch protection** — GitHub sigue exigiendo que ese check
+  llegue a un estado no-pendiente por su cuenta (aunque sea un "pass" de rate-limit) para
+  que el merge sea siquiera posible; sin eso, `gh pr merge` falla igualmente. Lo que la
+  revisión propia sustituye es nuestra propia barra de calidad — "que alguien de verdad
+  haya mirado el diff" — cuando el contenido de ese check no es una revisión genuina.
+  Solo hacerlo con autorización explícita del usuario para ese caso concreto, no por
+  defecto.
 - Ver también las decisiones de sesiones anteriores en el historial de este mismo
   fichero (git log): la capa de interpretación a largo plazo, el modo factura vs. anual,
   los dos decodificadores de QR — no se tocó nada de eso esta sesión.
