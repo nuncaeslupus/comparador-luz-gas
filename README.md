@@ -1,13 +1,103 @@
 # comparador-luz-gas
 
-Consulta el [comparador de ofertas de energía de la CNMC](https://comparador.cnmc.gob.es/)
-y devuelve las ofertas ordenadas por precio, en JSON pensado para que lo consuma un LLM.
+El [comparador de ofertas de energía de la CNMC](https://comparador.cnmc.gob.es/) es
+la única comparativa oficial de tarifas de luz y gas en España, pero solo se puede
+usar rellenando su formulario web. Por debajo hay una API pública sin autenticación
+que, para una consulta doméstica normal, pide **83 parámetros**.
+
+Esto es un proxy con una API clara por delante: tres datos entran, JSON ordenado por
+precio sale. Pensado para que lo llame un LLM o un script, sin pasar por la web.
+
+```python
+from comparador_luz_gas import Consulta, comparar
+
+r = comparar(Consulta(codigo_postal="28013", consumo_anual_luz=2600, potencia=3.45))
+r.ofertas[0]  # Oferta(comercializadora='CIDE HCENERGÍA S.A.U', importe_primer_anio=590.19, ...)
+```
 
 ```bash
 uv run comparador-luz-gas --cp 28013 --consumo 2600 --texto
-uv run comparador-luz-gas --cp 28013 --consumo 2600 --consumo-gas 6000 --suministro ambas
-uv run comparador-luz-gas --factura factura.pdf --texto             # saca los datos del QR
-uv run comparador-luz-gas --factura factura.pdf --mensual --texto   # coste de esa factura
+```
+
+Además hace dos cosas que la web no: lee el **QR de la factura** para no tener que
+teclear nada, y dice en cada respuesta **qué comercializadoras grandes faltan**, que
+es la trampa principal de este comparador.
+
+## Instalación
+
+```bash
+uv sync                                  # solo la consulta
+uv sync --extra facturas                 # + leer el QR de un PDF o imagen
+sudo apt install libzbar0 poppler-utils  # lo que necesita ese extra
+```
+
+## La API
+
+### `Consulta` — lo que preguntas
+
+| campo | por defecto | qué es |
+|---|---|---|
+| `codigo_postal` | — | obligatorio, p. ej. `"28013"` |
+| `consumo_anual_luz` | `0` | kWh/año |
+| `consumo_anual_gas` | `0` | kWh/año |
+| `potencia` | `3.45` | kW contratados |
+| `suministro` | `"luz"` | `"luz"`, `"gas"` o `"ambas"` |
+| `franjas` | `None` | `(punta, llano, valle)`; si falta, se reparte con el perfil 2.0TD |
+| `vivienda` | `True` | `False` si el suministro no es doméstico |
+| `permanencia` | `2` | `1` = solo ofertas sin permanencia |
+| `servicios_adicionales` | `2` | `1` = solo ofertas sin servicios contratados aparte |
+
+`comparar(consulta, timeout=90)` devuelve un `Resultado`. Es una sola petición HTTP:
+tarda entre 3 y 8 segundos, que es lo que tarda la CNMC.
+
+### `Resultado` — lo que devuelve
+
+`r.ofertas` viene ordenado de más barato a más caro. `r.to_dict()` es lo que imprime
+el CLI en JSON:
+
+```jsonc
+{
+  "modo": "anual",
+  "importes": "importe_primer_anio / importe_segundo_anio son el coste estimado de 12 meses.",
+  "consulta": { "codigo_postal": "28013", "consumo_anual_luz": 2600.0, "reparto_franjas": [745, 639, 1216] },
+  "cobertura": {
+    "aviso": "El comparador de la CNMC solo incluye ofertas que...",
+    "comercializadoras_en_resultado": 28,
+    "comercializadoras": ["ADX RENOVABLES, S.L.", "..."],
+    "grandes_ausentes": ["ENDESA", "IBERDROLA", "TOTALENERGIES", "..."]
+  },
+  "ofertas": [
+    {
+      "comercializadora": "CIDE HCENERGÍA S.A.U",
+      "oferta": "Plan Estrella Dúo",
+      "importe_primer_anio": 590.19,   // con el descuento de bienvenida
+      "importe_segundo_anio": 640.9,   // ya sin él
+      "permanencia": false,
+      "servicios_adicionales": false,
+      "verde": false,
+      "validez": "Oferta válida solo para nuevos clientes",
+      "precio_unico": true,
+      "id_oferta": 7137
+    }
+  ],
+  "alternativa_por_separado": null     // con suministro="ambas": luz + gas sueltos
+}
+```
+
+Los importes **no llevan desglose de impuestos**: la CNMC no lo publica en esta
+respuesta. Antes de cambiarte, confirma con la comercializadora si son con IVA.
+
+### CLI
+
+```bash
+comparador-luz-gas --cp 28013 --consumo 2600                      # JSON
+comparador-luz-gas --cp 28013 --consumo 2600 --texto --top 5      # tabla legible
+comparador-luz-gas --cp 28013 --consumo 2600 --sin-permanencia
+comparador-luz-gas --cp 28013 --consumo 2600 --consumo-gas 6000 --suministro ambas
+comparador-luz-gas --factura factura.pdf --texto                  # datos del QR
+comparador-luz-gas --factura factura.pdf --mensual --texto        # coste de esa factura
+comparador-luz-gas --qr 'https://comparador.cnmc.gob.es/comparador/QRE?cp=...'
+comparador-luz-gas --factura factura.pdf --solo-datos             # lee el QR y nada más
 ```
 
 ## Leer la factura: el QR, no el texto
@@ -22,40 +112,33 @@ https://comparador.cnmc.gob.es/comparador/QRE?cp=28013&pP1=4.6&pP2=4.6
    &caP1=740&caP2=660&caP3=757&cups=ES0000000000000000XX&imp=72.50&prE1=0.2288...
 ```
 
-Trae código postal, potencias contratadas, **consumo anual real por periodo**
-(punta/llano/valle), consumo del periodo facturado, precios e importe. Es decir,
-exactamente lo que el comparador necesita — y el formato lo fija la CNMC, no la
-comercializadora, así que **no hace falta un parser por compañía**.
-
-Tres puntos de entrada:
+Código postal, potencias, consumo anual por franja, consumo y fechas del periodo
+facturado, precios e importe: justo lo que pide el comparador. Como **el formato lo
+fija la CNMC y no la comercializadora**, sirve para cualquier compañía — no hace
+falta un parser por marca.
 
 ```python
 from comparador_luz_gas import comparar, desde_fichero, desde_qr
 
-f = desde_fichero("factura.pdf")  # PDF o imagen: localiza y decodifica el QR
-f = desde_qr(texto_del_qr)  # si la app ya lo ha escaneado (sin dependencias)
-r = comparar(f.consulta())  # ofertas ordenadas por precio
+f = desde_fichero("factura.pdf")  # PDF o imagen: localiza y decodifica el QR (~5 s)
+f = desde_qr(texto_del_qr)  # si la app ya lo escaneó: solo urllib.parse
+r = comparar(f.consulta())
 ```
 
-`desde_qr()` es solo `urllib.parse`: una app que escanee el QR con la cámara puede
-mandarnos la cadena y saltarse por completo el extra de imagen. Desde el CLI,
-`--qr '<cadena>'`; con `--solo-datos` se imprimen los datos leídos sin consultar nada.
+`desde_qr()` no tiene dependencias, así que una app que escanee el QR con la cámara
+puede mandar la cadena y saltarse el extra de imagen por completo.
 
-Leer el QR de un fichero necesita el extra y `libzbar`:
+**Si la factura está escaneada**, depende de a cuánto: el QR mide unos 3 px por módulo
+a 300 dpi, justo en el límite de los decodificadores. 400 dpi aguanta JPEG, giro y
+desenfoque; 300 dpi va bien salvo desenfoque; 200 dpi solo si está limpio; 150 dpi es
+imposible. Los números y el porqué, en [docs/qr-escaneado.md](docs/qr-escaneado.md).
 
-```bash
-uv sync --extra facturas   # pyzbar + opencv-python-headless
-sudo apt install libzbar0 poppler-utils
-```
+### Dos modos: anual y factura
 
-### Anual o factura a factura
-
-Por defecto la CNMC estima el **coste de doce meses** a partir del consumo anual
-que trae el QR. Con `--mensual` (`Factura.consulta(mensual=True)`) calcula en su
-lugar lo que habría costado **ese periodo de facturación concreto** con cada
-oferta, usando las fechas y el consumo reales de la factura. El resultado sale
-en la misma escala que el importe que pone la factura, así que se comparan
-directamente:
+Por defecto la CNMC estima el **coste de doce meses** a partir del consumo anual del
+QR. Con `--mensual` (`f.consulta(mensual=True)`) calcula lo que habría costado **ese
+periodo de facturación concreto**, con sus fechas y su consumo reales, así que sale
+en la misma escala que el importe impreso en la factura:
 
 ```
 Periodo 2026-07-14→2026-08-16: 146 kWh, pagaste 72.50 €.
@@ -65,30 +148,16 @@ Periodo 2026-07-14→2026-08-16: 146 kWh, pagaste 72.50 €.
     47.20     47.20  TRACTAMENT I SELECCIÓ DE RESIDUS, S.A. TARIFA FIJA CLÁSICA - 2.0TD
 ```
 
-Dos avisos al leer esa comparación:
+Dos avisos al leerlo:
 
-- El importe de la factura incluye conceptos que el comparador no cuenta —
-  servicios adicionales (mantenimiento), alquiler de equipos, bono social. El QR
-  los desglosa (`impSA`, `finBS`), así que réstalos antes de comparar.
-- La segunda columna es el **mismo periodo sin descuentos de bienvenida**, no un
-  segundo año. Para el PVPC sale 0: no tiene promoción que quitar.
+- El importe de la factura incluye cosas que el comparador no cuenta: servicios
+  adicionales, alquiler de equipos, bono social. El QR los desglosa (`impSA`,
+  `finBS`); réstalos antes de comparar.
+- La segunda columna es el mismo periodo **sin descuento de bienvenida**, no un
+  segundo año. En el PVPC sale 0 porque no hay promoción que quitar.
 
-El JSON marca el modo en `"modo"` y explica la escala de los importes en
-`"importes"`, para que un LLM no lea un mes como si fuera un año.
-
-### ¿Y una factura escaneada?
-
-Depende de a cuánto se escanee. El QR mide unos **3 px por módulo a 300 dpi**, justo
-en el límite de los decodificadores, así que hay poco margen:
-
-- **400 dpi**: aguanta JPEG, giro y desenfoque. Es el mejor sitio.
-- **300 dpi**: bien salvo desenfoque.
-- **200 dpi**: solo si está limpio.
-- **150 dpi**: imposible, la información ya no está en la imagen.
-
-Los números medidos, y por qué se usan dos decodificadores a varias escalas, están
-en [docs/qr-escaneado.md](docs/qr-escaneado.md). Si el escaneo no da, siempre queda
-`desde_qr()` con el QR leído por la cámara del móvil.
+En JSON, `"modo"` e `"importes"` dicen cuál de los dos es, para que un LLM no lea un
+mes como si fuera un año.
 
 ## Qué cubre el comparador, y qué no
 
@@ -104,9 +173,9 @@ validan una a una. **No es un censo del mercado.** Comprobado contra la API en v
 Endesa e Iberdrola aparecen solo como `Comercializadora de referencia`, que es el
 PVPC/TUR regulado de sus filiales obligadas por ley (Energía XXI, Curenergía).
 
-Por eso cada respuesta lleva un bloque `cobertura` con las comercializadoras grandes
-ausentes. La respuesta correcta a "¿cuál es la mejor tarifa?" es *la mejor entre las
-verificadas por la CNMC*, no *la mejor que existe*.
+Por eso cada respuesta lleva el bloque `cobertura`. La respuesta correcta a "¿cuál es
+la mejor tarifa?" es *la mejor entre las verificadas por la CNMC*, no *la mejor que
+existe*.
 
 ## Desarrollo
 
@@ -116,6 +185,6 @@ make test-live       # consulta la API real
 make test-facturas   # lee el QR de los PDFs de data/facturas/, si los hay
 ```
 
-Las capturas HAR (`data/har/`) y las facturas (`data/facturas/`) están en `.gitignore`:
-pueden contener CUPS, dirección y consumos reales. Los tests versionados usan un QR
-inventado.
+Las capturas HAR (`data/har/`) y las facturas (`data/facturas/`) están en
+`.gitignore`: llevan CUPS, dirección y consumos reales. Los tests versionados usan un
+QR inventado.
