@@ -179,6 +179,10 @@ class Oferta:
     validez: str | None
     precio_unico: bool
     id_oferta: int
+    penalizacion_estimada: float = 0.0
+    """Lo que la CNMC estima que cuesta romper la permanencia, en euros."""
+    solo_nuevos_clientes: bool = False
+    """La oferta no la puede contratar quien ya es cliente de esa comercializadora."""
 
 
 _IMPORTES = {
@@ -231,6 +235,8 @@ def _oferta(o: dict[str, Any]) -> Oferta:
         validez=o.get("validez"),
         precio_unico=o.get("tienePrecioUnico") == "S",
         id_oferta=o["id"],
+        penalizacion_estimada=round(o.get("importeEstimadoPenalizacion") or 0, 2),
+        solo_nuevos_clientes="nuevos clientes" in (o.get("validez") or "").lower(),
     )
 
 

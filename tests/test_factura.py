@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from comparador_luz_gas.factura import SinQR, desde_fichero, desde_qr
+from comparador_luz_gas.factura import SinQR, anualizar, desde_fichero, desde_qr
 
 # Inventado: mismos campos que uno real, con CUPS y CP de ejemplo. Las facturas
 # de verdad viven en data/facturas/, que está en .gitignore.
@@ -84,3 +84,20 @@ def test_escalar_lleva_la_pagina_al_lado_pedido_y_no_repite_el_nativo() -> None:
     ampliada = _escalar(pagina, 7000)
     assert ampliada is not None
     assert max(ampliada.shape) == 7000
+
+
+def test_anualizar_extrapola_la_ventana_corta_y_no_el_anual_del_qr() -> None:
+    # 33 días facturados (2026-07-14 → 2026-08-16) con 145.74 kWh.
+    f = desde_qr(QR)
+    total, franjas = anualizar([f])
+
+    assert total == pytest.approx(145.74 * 365 / 33, abs=0.02)
+    assert sum(franjas) == pytest.approx(total, abs=0.02)
+    # El anual del QR es otra cosa: 12 meses rodantes, no esta ventana.
+    assert f.consumo_anual_total == 2157
+
+
+def test_anualizar_sin_dias_facturados_avisa() -> None:
+    f = desde_qr(QR.replace("iniF=2026-07-14", "iniF=2026-08-16"))
+    with pytest.raises(ValueError, match="ningún día"):
+        anualizar([f])

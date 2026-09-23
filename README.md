@@ -159,6 +159,47 @@ Dos avisos al leerlo:
 En JSON, `"modo"` e `"importes"` dicen cuál de los dos es, para que un LLM no lea un
 mes como si fuera un año.
 
+## Valoración a largo plazo, sin LLM
+
+`interpretar(resultado, anios=3)` (clave `"analisis"` del JSON de la CLI) es aritmética
+sobre lo que ya devuelve la CNMC, pensada para que un LLM o una persona no lea mal el
+ranking. El comparador ordena por `importe_primer_anio` y ese puesto lo gana casi
+siempre una oferta de bienvenida, que **solo se cobra una vez**:
+
+```python
+from comparador_luz_gas import comparar, Consulta, interpretar
+
+a = interpretar(comparar(Consulta(codigo_postal="28013", consumo_anual_luz=2200)), anios=3)
+print(a["resumen"])
+for aviso in a["avisos"]:
+    print("-", aviso)
+```
+
+Devuelve el coste a N años de cada oferta (`primer_anio + (N-1) × siguientes`), la mejor
+quedándote, y la alternativa de **rotar ofertas de nuevo cliente** — una comercializadora
+por año, porque nadie estrena dos veces la misma —, más avisos derivados de los datos:
+permanencia y su penalización estimada, servicios adicionales, y el PVPC frente a la mejor
+fija.
+
+Lo que **no** hace, porque los datos no dan para ello: decir en qué mes del año conviene
+cambiar. El catálogo no lleva fechas de alta ni de caducidad de las ofertas, solo el tipo
+de cliente que admiten, así que el momento lo marca tu permanencia y no el mercado.
+
+### Consumo: la ventana importa
+
+El QR trae los **12 meses rodantes**, que arrastran lo que consumías hace un año. Con
+varias facturas a mano, `anualizar()` extrapola una ventana más corta y más parecida a hoy:
+
+```python
+from comparador_luz_gas import anualizar, desde_fichero
+
+ultimas = [desde_fichero(p) for p in sorted(Path("facturas").glob("*.pdf"))[-6:]]
+total, franjas = anualizar(ultimas)
+```
+
+Cambia el importe estimado, no tanto el ranking: la CNMC solo usa tus kWh y les aplica su
+propio catálogo, así que lo que te haya subido tu comercializadora no entra en el cálculo.
+
 ## Qué cubre el comparador, y qué no
 
 La CNMC solo publica ofertas que las comercializadoras le remiten y que sus técnicos

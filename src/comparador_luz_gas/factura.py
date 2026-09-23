@@ -15,9 +15,10 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date
 from itertools import count
 from pathlib import Path
 from typing import Any
@@ -103,6 +104,27 @@ class Factura:
         if mensual:
             campos |= self.periodo
         return Consulta(**(campos | extra))
+
+
+def anualizar(facturas: Sequence[Factura]) -> tuple[float, tuple[float, float, float]]:
+    """Consumo anual extrapolado de esas facturas: (total, (punta, llano, valle)).
+
+    El QR trae los 12 meses rodantes, que arrastran lo que consumías hace un año.
+    Con las últimas facturas a mano se puede usar una ventana más corta y más
+    parecida a hoy; el reparto por franjas sale de las mismas facturas.
+    """
+    dias = sum(
+        (date.fromisoformat(f.fin_factura) - date.fromisoformat(f.inicio_factura)).days
+        for f in facturas
+    )
+    if not dias:
+        raise ValueError("las facturas no cubren ningún día: ¿les falta iniF/finF?")
+    franjas = tuple(sum(f.consumo_factura[i] for f in facturas) * 365 / dias for i in range(3))
+    return round(sum(franjas), 2), (
+        round(franjas[0], 2),
+        round(franjas[1], 2),
+        round(franjas[2], 2),
+    )
 
 
 def _f(params: dict[str, list[str]], clave: str) -> float:

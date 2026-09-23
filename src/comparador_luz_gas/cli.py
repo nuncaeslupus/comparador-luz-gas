@@ -7,6 +7,7 @@ import dataclasses
 import json
 import sys
 
+from comparador_luz_gas.analisis import interpretar
 from comparador_luz_gas.cnmc import Consulta, Resultado, comparar
 from comparador_luz_gas.factura import Factura, desde_fichero, desde_qr
 
@@ -68,6 +69,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--empresa", action="store_true", help="suministro que no es vivienda")
     p.add_argument("--top", type=int, default=10, help="filas a mostrar en modo texto")
     p.add_argument("--texto", action="store_true", help="tabla legible en vez de JSON")
+    p.add_argument(
+        "--anios",
+        type=int,
+        default=3,
+        help="horizonte del análisis a largo plazo (por defecto 3)",
+    )
     a = p.parse_args(argv)
 
     factura: Factura | None = None
@@ -127,8 +134,13 @@ def main(argv: list[str] | None = None) -> int:
                 f"{sum(factura.consumo_factura):.0f} kWh, pagaste {factura.importe:.2f} €.\n"
             )
         print(_tabla(r, a.top))
+        an = interpretar(r, a.anios)
+        print("\n" + str(an.get("resumen") or an["nota"]))
+        for aviso in an.get("avisos", []):
+            print(f"- {aviso}")
     else:
         salida = r.to_dict()
+        salida["analisis"] = interpretar(r, a.anios)
         if factura:
             salida["factura"] = dataclasses.asdict(factura)
         json.dump(salida, sys.stdout, ensure_ascii=False, indent=2)
