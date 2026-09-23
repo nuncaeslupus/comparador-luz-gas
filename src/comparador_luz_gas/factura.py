@@ -26,7 +26,7 @@ from .cnmc import Consulta
 
 HOST_QR = "comparador.cnmc.gob.es"
 _RESOLUCION_PDF = 300
-_LADOS = (0, 9000, 7000, 5300)
+_LADOS = (0, 9000, 7000, 6000, 5300)
 """Píxeles del lado largo a los que reescalar la página; 0 es el tamaño original.
 
 El QR ocupa ~3 px por módulo a 300 dpi, justo en el límite de los

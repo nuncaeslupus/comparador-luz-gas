@@ -49,10 +49,17 @@ sudo apt install libzbar0 poppler-utils
 
 ### ¿Y una factura escaneada?
 
-Depende de a cuánto se escanee. **300 dpi es el mínimo práctico**: el QR mide unos
-3 px por módulo a esa resolución, justo en el límite de los decodificadores. A 150
-dpi no hay nada que hacer. Los números medidos, y por qué se prueban dos
-decodificadores a varias escalas, están en [docs/qr-escaneado.md](docs/qr-escaneado.md).
+Depende de a cuánto se escanee. El QR mide unos **3 px por módulo a 300 dpi**, justo
+en el límite de los decodificadores, así que hay poco margen:
+
+- **400 dpi**: aguanta JPEG, giro y desenfoque. Es el mejor sitio.
+- **300 dpi**: bien salvo desenfoque.
+- **200 dpi**: solo si está limpio.
+- **150 dpi**: imposible, la información ya no está en la imagen.
+
+Los números medidos, y por qué se usan dos decodificadores a varias escalas, están
+en [docs/qr-escaneado.md](docs/qr-escaneado.md). Si el escaneo no da, siempre queda
+`desde_qr()` con el QR leído por la cámara del móvil.
 
 ## Qué cubre el comparador, y qué no
 
