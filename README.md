@@ -248,13 +248,15 @@ existe*.
   así que no se puede decir en qué mes conviene cambiar (más detalle en
   [Valoración a largo plazo](#valoración-a-largo-plazo-sin-llm)).
 - **Las ofertas por tramos se valoran con TU reparto punta/llano/valle**, sacado del
-  QR o de `anualizar()`. Ese reparto asume los tramos regulados desde la Resolución de
-  24/06/2021 (punta 10-14h y 18-22h, llano el resto del día laborable, valle 0-8h y
-  festivos). **Si vienes de una tarifa de discriminación horaria anterior** (p. ej. una
-  "tarifa 8 horas" donde el valle lo elegías tú o lo fijaba la comercializadora, no el
-  tramo 0-8h regulado), el reparto histórico de esas facturas no representa cómo
-  caería ese consumo en los tramos *actuales* — la comparación de ofertas horarias
-  hereda esa incertidumbre. Usa solo facturas posteriores a la Resolución si puedes.
+  QR o de `anualizar()`. En Península, Illes Balears y Canarias, ese reparto asume los
+  tramos 2.0TD que fija la Circular 3/2020, aplicables desde el 1/06/2021 (punta 10-14h
+  y 18-22h, llano el resto del día laborable, valle 0-8h y festivos). Ceuta y Melilla
+  usan horarios distintos. **Si vienes de una tarifa de discriminación horaria
+  anterior** (p. ej. una "tarifa 8 horas" donde el valle lo elegías tú o lo fijaba la
+  comercializadora, no el tramo 0-8h regulado), el reparto histórico de esas facturas
+  no representa cómo caería ese consumo en los tramos *actuales* — la comparación de
+  ofertas horarias hereda esa incertidumbre. Usa solo facturas posteriores al 1/06/2021
+  si puedes.
 - **El comparador aplica su catálogo de hoy a tus kWh**: una subida de precio de tu
   comercializadora actual no distorsiona la estimación, pero un cambio en tu propio
   consumo sí.
