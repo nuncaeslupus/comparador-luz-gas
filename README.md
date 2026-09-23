@@ -215,11 +215,18 @@ total, franjas = anualizar(ultimas)
 Cambia el importe estimado, no tanto el ranking: la CNMC solo usa tus kWh y les aplica su
 propio catálogo, así que lo que te haya subido tu comercializadora no entra en el cálculo.
 
-## Qué cubre el comparador, y qué no
+## Método y limitaciones
+
+Todo lo que devuelve este proyecto sale de la API oficial de la CNMC
+(comparador.cnmc.gob.es): no hay estimación de precios propia, solo cuentas sobre lo
+que ella responde. Es, con diferencia, la fuente más transparente que hay — pero eso
+no la hace completa.
+
+### No es un censo del mercado
 
 La CNMC solo publica ofertas que las comercializadoras le remiten y que sus técnicos
-validan una a una. **No es un censo del mercado.** Comprobado contra la API en vivo el
-2026-09-23, sobre 20 códigos postales:
+validan una a una. Comprobado contra la API en vivo el 2026-09-23, sobre 20 códigos
+postales:
 
 - Presentes: Naturgy, Repsol, Galp, Octopus, Fenie, Nexus, Lumisa y ~45 más.
 - **Iberdrola Clientes**: una sola oferta, solo gas (`Plan Gas Hogar RL2 online`).
@@ -232,6 +239,27 @@ PVPC/TUR regulado de sus filiales obligadas por ley (Energía XXI, Curenergía).
 Por eso cada respuesta lleva el bloque `cobertura`. La respuesta correcta a "¿cuál es
 la mejor tarifa?" es *la mejor entre las verificadas por la CNMC*, no *la mejor que
 existe*.
+
+### Otras limitaciones
+
+- **Sin desglose de impuestos**: los importes no llevan IVA desglosado; confírmalo con
+  la comercializadora antes de cambiarte.
+- **Sin histórico**: el catálogo no lleva fechas de alta ni caducidad de las ofertas,
+  así que no se puede decir en qué mes conviene cambiar (más detalle en
+  [Valoración a largo plazo](#valoración-a-largo-plazo-sin-llm)).
+- **Las ofertas por tramos se valoran con TU reparto punta/llano/valle**, sacado del
+  QR o de `anualizar()`. En Península, Illes Balears y Canarias, ese reparto asume los
+  tramos 2.0TD que fija la Circular 3/2020, aplicables desde el 1/06/2021 (punta 10-14h
+  y 18-22h, llano el resto del día laborable, valle 0-8h y festivos). Ceuta y Melilla
+  usan horarios distintos. **Si vienes de una tarifa de discriminación horaria
+  anterior** (p. ej. una "tarifa 8 horas" donde el valle lo elegías tú o lo fijaba la
+  comercializadora, no el tramo 0-8h regulado), el reparto histórico de esas facturas
+  no representa cómo caería ese consumo en los tramos *actuales* — la comparación de
+  ofertas horarias hereda esa incertidumbre. Usa solo facturas posteriores al 1/06/2021
+  si puedes.
+- **El comparador aplica su catálogo de hoy a tus kWh**: una subida de precio de tu
+  comercializadora actual no distorsiona la estimación, pero un cambio en tu propio
+  consumo sí.
 
 ## Desarrollo
 
