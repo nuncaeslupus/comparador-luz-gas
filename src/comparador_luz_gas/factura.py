@@ -15,9 +15,10 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from itertools import count
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -177,20 +178,43 @@ def _escalar(img: Any, lado: int) -> Any | None:
 
 
 @contextmanager
-def _paginas(ruta: Path, resolucion: int) -> Iterator[list[Path]]:
-    """Las páginas del documento como ficheros de imagen."""
+def _paginas(ruta: Path, resolucion: int) -> Iterator[Callable[[int], Path | None]]:
+    """Da una función que devuelve la página n, o None si el documento se acabó.
+
+    Renderiza página a página y cachea: la factura normal lleva el QR en la 3ª,
+    así que rendirizar las cinco cuesta 6,5 s y parar en la tercera, 2,5 s.
+    """
     if ruta.suffix.lower() != ".pdf":
-        yield [ruta]
+        yield lambda n: ruta if n == 1 else None
         return
     if not shutil.which("pdftoppm"):
         raise RuntimeError("Falta 'pdftoppm' (paquete poppler-utils) para leer PDFs.")
-    with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(
-            ["pdftoppm", "-r", str(resolucion), "-png", str(ruta), f"{tmp}/pg"],
-            check=True,
-            capture_output=True,
-        )
-        yield sorted(Path(tmp).glob("pg-*.png"))
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+
+        def pagina(n: int) -> Path | None:
+            destino = tmp / f"pg-{n}.png"
+            if not destino.exists():
+                subprocess.run(
+                    [
+                        "pdftoppm",
+                        "-f",
+                        str(n),
+                        "-l",
+                        str(n),
+                        "-r",
+                        str(resolucion),
+                        "-png",
+                        "-singlefile",
+                        str(ruta),
+                        str(tmp / f"pg-{n}"),
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+            return destino if destino.exists() else None
+
+        yield pagina
 
 
 def leer_qr(ruta: Path | str) -> str:
@@ -208,14 +232,17 @@ def leer_qr(ruta: Path | str) -> str:
             "apt install libzbar0)."
         ) from e
 
-    with _paginas(ruta, _RESOLUCION_PDF) as paginas:
+    with _paginas(ruta, _RESOLUCION_PDF) as pagina:
         # Escala por fuera y página por dentro: la factura normal cae en la
         # primera pasada, que es la barata, y solo un escaneo malo paga el resto.
         for lado in _LADOS:
-            for pagina in paginas:
-                img = cv2.imread(str(pagina), cv2.IMREAD_GRAYSCALE)
+            for n in count(1):
+                png = pagina(n)
+                if png is None:
+                    break
+                img = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
                 if img is None:
-                    raise SinQR(f"No se pudo abrir la imagen {pagina}")
+                    raise SinQR(f"No se pudo abrir la imagen {png}")
                 if (b := _escalar(img, lado)) is None:
                     continue
                 for texto in _candidatos(b, nativo=not lado):
