@@ -28,6 +28,7 @@ from xml.sax.saxutils import escape
 ROOT = Path(__file__).resolve().parent.parent
 OUT_SVG = ROOT / "docs" / "hero.svg"
 OUT_PNG = ROOT / "docs" / "hero.png"
+LOGO_SVG = ROOT / "docs" / "logo.svg"
 
 #: El tamaño de la vista previa social de GitHub; el README la escala a su columna.
 W, H = 1280, 640
@@ -115,17 +116,45 @@ def sheet() -> list[str]:
     return out
 
 
+#: One rule in every hero: the logo tile is 0.95 x the wordmark's font size, centred on
+#: its capital band (baseline to cap height, 0.727 em), with a quarter-em gap before it.
+WORD_SIZE, WORD_BASE, LOGO_X = 70, 122, 64
+LOGO_SIZE = round(0.95 * WORD_SIZE)
+LOGO_Y = round(WORD_BASE - 0.727 * WORD_SIZE / 2 - LOGO_SIZE / 2)
+TEXT_X = LOGO_X + LOGO_SIZE + round(0.25 * WORD_SIZE)
+
+
+def logo() -> list[str]:
+    """docs/logo.svg nested inline, so the hero stays generated from repo source."""
+    inner = LOGO_SVG.read_text()
+    inner = inner[inner.index("<svg") :].strip()
+    inner = inner.replace(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">', "", 1
+    ).removesuffix("</svg>")
+    return [
+        f'<svg x="{LOGO_X}" y="{LOGO_Y}" width="{LOGO_SIZE}" height="{LOGO_SIZE}" '
+        f'viewBox="0 0 64 64">{inner}</svg>',
+        f'<rect x="{LOGO_X}" y="{LOGO_Y}" width="{LOGO_SIZE}" height="{LOGO_SIZE}" '
+        f'rx="{LOGO_SIZE * 14 / 64}" fill="none" stroke="{FRAME}" stroke-width="1.2"/>',
+    ]
+
+
 def wordmark() -> list[str]:
     return [
-        f'<text x="64" y="122" font-family="{DISPLAY}" font-size="70" font-weight="800" '
+        f'<text x="{TEXT_X}" y="{WORD_BASE}" font-family="{DISPLAY}" '
+        f'font-size="{WORD_SIZE}" font-weight="800" '
         f'letter-spacing="-2"><tspan fill="{INK}">comparador-</tspan>'
         f'<tspan fill="{AMBER}">luz</tspan><tspan fill="{INK}">-</tspan>'
         f'<tspan fill="{BLUE}">gas</tspan></text>',
         text(
-            68, 164, "El comparador oficial de la CNMC, sin el formulario.", size=25, fill="#c9d4dd"
+            LOGO_X + 4,
+            164,
+            "El comparador oficial de la CNMC, sin el formulario.",
+            size=25,
+            fill="#c9d4dd",
         ),
         text(
-            68,
+            LOGO_X + 4,
             192,
             "Tres datos entran, JSON ordenado por precio sale. Para scripts y LLMs.",
             size=15,
@@ -293,7 +322,7 @@ def strip() -> list[str]:
 
 
 def svg() -> str:
-    parts = sheet() + wordmark() + title_block() + form() + inputs() + offers() + strip()
+    parts = sheet() + logo() + wordmark() + title_block() + form() + inputs() + offers() + strip()
     parts += arrow(320, 368, 345) + arrow(670, 728, 345)
     body = "\n  ".join(parts)
     return (
