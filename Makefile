@@ -1,4 +1,4 @@
-.PHONY: sync lint format test test-live test-facturas clean update-skills
+.PHONY: sync lint format test test-live test-facturas clean update-skills hero
 
 sync:
 	uv sync
@@ -21,6 +21,9 @@ test-live:
 # Facturas reales, no versionadas: se salta solo si data/facturas/ está vacío.
 test-facturas:
 	uv run pytest -q -m facturas
+
+hero:  # redibuja la cabecera del README, docs/hero.svg y docs/hero.png (necesita Chromium)
+	uv run --with pillow python tools/hero.py
 
 clean:
 	rm -rf dist build .pytest_cache .mypy_cache .ruff_cache
