@@ -1,5 +1,9 @@
 # comparador-luz-gas
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/nuncaeslupus/comparador-luz-gas/main/docs/hero.png" width="100%" alt="comparador-luz-gas: los 83 parámetros del formulario de la CNMC se quedan en tres datos, código postal, consumo y potencia, o el QR de la factura, y salen las ofertas ordenadas de más barata a más cara, con el aviso de qué comercializadoras grandes faltan">
+</p>
+
 El [comparador de ofertas de energía de la CNMC](https://comparador.cnmc.gob.es/) es
 la única comparativa oficial de tarifas de luz y gas en España, pero solo se puede
 usar rellenando su formulario web. Por debajo hay una API pública sin autenticación
