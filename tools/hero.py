@@ -116,9 +116,12 @@ def sheet() -> list[str]:
     return out
 
 
-#: Logo tile (side, left, top) and the x where the wordmark starts after it.
-LOGO_SIZE, LOGO_X, LOGO_Y = 84, 64, 54
-TEXT_X = LOGO_X + LOGO_SIZE + 22
+#: One rule in every hero: the logo tile is 0.95 x the wordmark's font size, centred on
+#: its capital band (baseline to cap height, 0.727 em), with a quarter-em gap before it.
+WORD_SIZE, WORD_BASE, LOGO_X = 70, 122, 64
+LOGO_SIZE = round(0.95 * WORD_SIZE)
+LOGO_Y = round(WORD_BASE - 0.727 * WORD_SIZE / 2 - LOGO_SIZE / 2)
+TEXT_X = LOGO_X + LOGO_SIZE + round(0.25 * WORD_SIZE)
 
 
 def logo() -> list[str]:
@@ -138,19 +141,20 @@ def logo() -> list[str]:
 
 def wordmark() -> list[str]:
     return [
-        f'<text x="{TEXT_X}" y="122" font-family="{DISPLAY}" font-size="70" font-weight="800" '
+        f'<text x="{TEXT_X}" y="{WORD_BASE}" font-family="{DISPLAY}" '
+        f'font-size="{WORD_SIZE}" font-weight="800" '
         f'letter-spacing="-2"><tspan fill="{INK}">comparador-</tspan>'
         f'<tspan fill="{AMBER}">luz</tspan><tspan fill="{INK}">-</tspan>'
         f'<tspan fill="{BLUE}">gas</tspan></text>',
         text(
-            TEXT_X + 4,
+            LOGO_X + 4,
             164,
             "El comparador oficial de la CNMC, sin el formulario.",
             size=25,
             fill="#c9d4dd",
         ),
         text(
-            TEXT_X + 4,
+            LOGO_X + 4,
             192,
             "Tres datos entran, JSON ordenado por precio sale. Para scripts y LLMs.",
             size=15,

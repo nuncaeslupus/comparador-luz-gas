@@ -148,11 +148,11 @@
   <circle cx="48" cy="592" r="7" fill="none" stroke="#f2b632"/>
   <line x1="37" y1="592" x2="59" y2="592" stroke="#f2b632"/>
   <line x1="48" y1="581" x2="48" y2="603" stroke="#f2b632"/>
-  <svg x="64" y="54" width="84" height="84" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f1d27"/><path d="M26 10 L14 36 L24 36 L20 54 L34 26 L24 26 Z" fill="#f2b632"/><path d="M44 54 C36 54 32 48 33 41 C34 35 40 32 40 24 C46 29 52 36 52 44 C52 50 49 54 44 54 Z" fill="#5aa9e6"/><path d="M44 52 C41 52 39 49 40 46 C41 43 44 42 44 38 C47 41 48 44 48 47 C48 50 46 52 44 52 Z" fill="#0f1d27"/></svg>
-  <rect x="64" y="54" width="84" height="84" rx="18.375" fill="none" stroke="#4d6577" stroke-width="1.2"/>
-  <text x="170" y="122" font-family="'Inter Display', Inter, sans-serif" font-size="70" font-weight="800" letter-spacing="-2"><tspan fill="#eef2f5">comparador-</tspan><tspan fill="#f2b632">luz</tspan><tspan fill="#eef2f5">-</tspan><tspan fill="#5aa9e6">gas</tspan></text>
-  <text x="174" y="164" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="25" font-weight="400" fill="#c9d4dd" text-anchor="start" letter-spacing="0" xml:space="preserve">El comparador oficial de la CNMC, sin el formulario.</text>
-  <text x="174" y="192" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="15" font-weight="400" fill="#8ea3b4" text-anchor="start" letter-spacing="0" xml:space="preserve">Tres datos entran, JSON ordenado por precio sale. Para scripts y LLMs.</text>
+  <svg x="64" y="64" width="66" height="66" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f1d27"/><path d="M26 10 L14 36 L24 36 L20 54 L34 26 L24 26 Z" fill="#f2b632"/><path d="M44 54 C36 54 32 48 33 41 C34 35 40 32 40 24 C46 29 52 36 52 44 C52 50 49 54 44 54 Z" fill="#5aa9e6"/><path d="M44 52 C41 52 39 49 40 46 C41 43 44 42 44 38 C47 41 48 44 48 47 C48 50 46 52 44 52 Z" fill="#0f1d27"/></svg>
+  <rect x="64" y="64" width="66" height="66" rx="14.4375" fill="none" stroke="#4d6577" stroke-width="1.2"/>
+  <text x="148" y="122" font-family="'Inter Display', Inter, sans-serif" font-size="70" font-weight="800" letter-spacing="-2"><tspan fill="#eef2f5">comparador-</tspan><tspan fill="#f2b632">luz</tspan><tspan fill="#eef2f5">-</tspan><tspan fill="#5aa9e6">gas</tspan></text>
+  <text x="68" y="164" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="25" font-weight="400" fill="#c9d4dd" text-anchor="start" letter-spacing="0" xml:space="preserve">El comparador oficial de la CNMC, sin el formulario.</text>
+  <text x="68" y="192" font-family="Inter, 'DejaVu Sans', sans-serif" font-size="15" font-weight="400" fill="#8ea3b4" text-anchor="start" letter-spacing="0" xml:space="preserve">Tres datos entran, JSON ordenado por precio sale. Para scripts y LLMs.</text>
   <rect x="842" y="62" width="376" height="64" fill="#0f1d27" stroke="#4d6577" stroke-width="1.2"/>
   <line x1="842" y1="98.0" x2="1218" y2="98.0" stroke="#4d6577"/>
   <line x1="1010.0" y1="98.0" x2="1010.0" y2="126" stroke="#4d6577"/>
