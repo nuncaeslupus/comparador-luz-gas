@@ -3,8 +3,15 @@ name = "comparador-luz-gas"
 version = "0.1.0"
 description = "Consulta el comparador de ofertas de energía de la CNMC y devuelve JSON listo para un LLM"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/nuncaeslupus/comparador-luz-gas"
+Repository = "https://github.com/nuncaeslupus/comparador-luz-gas"
+Issues = "https://github.com/nuncaeslupus/comparador-luz-gas/issues"
 
 [project.optional-dependencies]
 # Solo para leer el QR de un PDF/imagen. `desde_qr()` no las necesita.
