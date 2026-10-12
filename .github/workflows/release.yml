@@ -1,0 +1,98 @@
+name: Release
+
+# Publica al fusionar: cuando llega a `main` un commit cuya versión en
+# pyproject.toml aún no tiene etiqueta `vX.Y.Z`, construye, publica en PyPI
+# (trusted publishing / OIDC, sin token guardado), etiqueta y crea la release
+# de GitHub. Para publicar: sube la versión en un PR y fusiónalo. Un push que
+# no cambia la versión no hace nada (el job `guard` sale pronto).
+#
+# No renombres este fichero: el trusted publisher de PyPI se identifica por
+# repo + nombre del workflow (`release.yml`) + el environment `pypi`.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Dos fusiones seguidas no deben competir por la misma publicación.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Decide whether to release
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        name: Has this version already been released?
+        run: |
+          VER=$(python3 -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          if git ls-remote --tags --exit-code origin "refs/tags/v$VER" >/dev/null 2>&1; then
+            echo "v$VER is already tagged — nothing to release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$VER has no tag yet — will release."
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build distributions
+    needs: guard
+    if: needs.guard.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: make sync
+      - run: make lint
+      - run: make test
+      - name: Build wheel and sdist
+        run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [guard, build]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # Trusted publishing (OIDC): PyPI confía en este workflow, no en un token.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: Tag and create GitHub release
+    needs: [guard, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Create the tag and the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ needs.guard.outputs.version }}
+        run: gh release create "v$VER" --target "$GITHUB_SHA" --title "v$VER" --generate-notes --latest dist/*
