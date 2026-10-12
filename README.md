@@ -276,3 +276,7 @@ make test-facturas   # lee el QR de los PDFs de data/facturas/, si los hay
 Las capturas HAR (`data/har/`) y las facturas (`data/facturas/`) están en
 `.gitignore`: llevan CUPS, dirección y consumos reales. Los tests versionados usan un
 QR inventado.
+
+## Hecho con claude-arsenal
+
+Este repositorio se desarrolla con [claude-arsenal](https://github.com/nuncaeslupus/claude-arsenal), un marketplace de plugins para Claude Code orientado a trabajar con especificaciones: primero la especificación, después los tests que fallan, y criterios de aceptación con números. Las skills incluidas están en `claude-arsenal/`.
