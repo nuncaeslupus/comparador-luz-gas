@@ -20,7 +20,7 @@ r.ofertas[0]  # Oferta(comercializadora='CIDE HCENERGÍA S.A.U', importe_primer_
 ```
 
 ```bash
-uv run comparador-luz-gas --cp 28013 --consumo 2600 --texto
+comparador-luz-gas --cp 28013 --consumo 2600 --texto
 ```
 
 Además hace dos cosas que la web no: lee el **QR de la factura** para no tener que
@@ -29,11 +29,16 @@ es la trampa principal de este comparador.
 
 ## Instalación
 
+Está en [PyPI](https://pypi.org/project/comparador-luz-gas/):
+
 ```bash
-uv sync                                  # solo la consulta
-uv sync --extra facturas                 # + leer el QR de un PDF o imagen
-sudo apt install libzbar0 poppler-utils  # lo que necesita ese extra
+pip install comparador-luz-gas              # solo la consulta
+pip install "comparador-luz-gas[facturas]"  # + leer el QR de un PDF o imagen
+sudo apt install libzbar0 poppler-utils     # lo que necesita ese extra
 ```
+
+Con `uv`, `uv add comparador-luz-gas`; o sin instalar nada,
+`uvx comparador-luz-gas --cp 28013 --consumo 2600 --texto`.
 
 ## La API
 
