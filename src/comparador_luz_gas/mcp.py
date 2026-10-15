@@ -36,7 +36,10 @@ _SOLO_LECTURA: dict[str, Any] = {
 }
 
 # Una sola forma de error para las tres herramientas.
-_ERROR = 'Si falla, devuelve un error con texto JSON `{"ok": false, "error", "message"}`'
+_ERROR = (
+    "Si falla, devuelve un error con texto JSON "
+    '`{"ok": false, "error": "ArgumentoInvalido", "message": "..."}`'
+)
 
 _DATOS_FACTURA: dict[str, Any] = {
     "type": "object",
@@ -157,8 +160,9 @@ TOOLS: list[dict[str, Any]] = [
                 "ruta": {
                     "type": "string",
                     "description": "ruta al PDF o imagen de la factura en el disco del "
-                    "servidor; mejor absoluta (una relativa parte del directorio del "
-                    "servidor), p. ej. `/home/ana/facturas/2025-03.pdf`",
+                    "servidor; mejor absoluta (una relativa se resuelve desde el "
+                    "directorio de trabajo del proceso MCP), p. ej. "
+                    "`/home/ana/facturas/2025-03.pdf`",
                 }
             },
             "required": ["ruta"],
