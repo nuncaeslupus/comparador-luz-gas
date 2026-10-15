@@ -1,5 +1,7 @@
 import io
 import json
+import tomllib
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -93,3 +95,13 @@ def test_herramienta_desconocida_y_json_roto() -> None:
     salida = io.BytesIO()
     mcp.serve(io.BytesIO(b"{no es json\n"), salida)
     assert json.loads(salida.getvalue())["error"]["code"] == -32700
+
+
+def test_server_json_va_con_la_version_del_paquete() -> None:
+    """El registro de MCP publica `server.json` tal cual: su versión debe ser la de PyPI."""
+    raiz = Path(__file__).parent.parent
+    version = tomllib.loads((raiz / "pyproject.toml").read_text())["project"]["version"]
+    server = json.loads((raiz / "server.json").read_text())
+    assert server["version"] == version
+    assert {p["version"] for p in server["packages"]} == {version}
+    assert f"mcp-name: {server['name']}" in (raiz / "README.md").read_text()
