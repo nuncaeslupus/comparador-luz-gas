@@ -125,7 +125,7 @@ otro cliente MCP, sin dependencias extra. Herramientas:
 - `comparar_ofertas`: lo mismo que el CLI en JSON (ofertas + análisis a largo plazo). Basta
   `qr`, o `cp` + `consumo`; `max_ofertas` (20 por defecto) recorta la lista.
 - `leer_factura_qr`: los datos del QR de una factura, sin consultar la CNMC.
-- `leer_factura`: lee el QR de un PDF o imagen del disco (necesita el extra `facturas`).
+- `leer_factura_archivo`: lee el QR de un PDF o imagen del disco (necesita el extra `facturas`).
 
 ```json
 {
@@ -135,7 +135,7 @@ otro cliente MCP, sin dependencias extra. Herramientas:
 }
 ```
 
-Para `leer_factura`: `"args": ["--from", "comparador-luz-gas[facturas]", "comparador-luz-gas", "mcp"]`.
+Para `leer_factura_archivo`: `"args": ["--from", "comparador-luz-gas[facturas]", "comparador-luz-gas", "mcp"]`.
 También hay `Dockerfile` (`docker run -i --rm comparador-luz-gas`). Está en el
 [registro oficial de MCP](https://registry.modelcontextprotocol.io) como
 `io.github.nuncaeslupus/comparador-luz-gas`.

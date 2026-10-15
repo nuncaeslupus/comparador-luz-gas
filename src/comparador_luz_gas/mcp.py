@@ -26,13 +26,47 @@ _QR = {
     "(la URL de comparador.cnmc.gob.es que lleva impresa)",
 }
 
+# Ninguna herramienta escribe nada: repetir una llamada con los mismos
+# argumentos devuelve lo mismo y no cambia nada.
+_SOLO_LECTURA: dict[str, Any] = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+}
+
+# Una sola forma de error para las tres herramientas.
+_ERROR = (
+    "Si no puede, devuelve un resultado de error cuyo texto es JSON "
+    '`{"ok": false, "error", "message"}` explicando qué falta o qué falló.'
+)
+
+_DATOS_FACTURA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "codigo_postal": {"type": "string"},
+        "potencia_p1": {"type": "number"},
+        "potencia_p2": {"type": "number"},
+        "consumo_anual": {"type": "array", "items": {"type": "number"}},
+        "consumo_factura": {"type": "array", "items": {"type": "number"}},
+        "importe": {"type": "number"},
+    },
+    "required": ["codigo_postal", "consumo_anual"],
+}
+
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "comparar_ofertas",
-        "description": "Consulta el comparador oficial de la CNMC y devuelve las ofertas de "
-        "luz y/o gas ordenadas por precio, con un análisis a varios años (rotar de oferta, "
-        "permanencias, precio fijo vs. por tramos). Basta el QR de una factura, o código "
-        "postal + consumo anual.",
+        "description": "Consulta el comparador oficial de la CNMC (una llamada a su API, "
+        "unos segundos) y devuelve las ofertas de luz y/o gas ordenadas por precio, con un "
+        "análisis a varios años (rotar de oferta, permanencias, precio fijo vs. por tramos). "
+        "Basta `qr` (el de una factura de luz) o `cp` + `consumo`; para gas, `cp` + "
+        "`consumo_gas` y `suministro` gas o ambas. Sin `qr`, la potencia es 3,45 kW y el "
+        "consumo se reparte por tramos con el perfil 2.0TD. Si ya tienes el texto del QR, "
+        "pásalo aquí directamente: no hace falta `leer_factura_qr` antes. Devuelve "
+        "`{consulta, ofertas: [{comercializadora, oferta, importe_primer_anio, "
+        "importe_segundo_anio, permanencia, verde, ...}], analisis: {resumen, opciones, "
+        "avisos, ...}, cobertura, factura?}`; importes en euros tal como los da la CNMC, "
+        "sin desglose de impuestos. " + _ERROR,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -43,7 +77,12 @@ TOOLS: list[dict[str, Any]] = [
                     "type": "number",
                     "description": "potencia contratada en kW (por defecto 3.45)",
                 },
-                "suministro": {"type": "string", "enum": ["luz", "gas", "ambas"]},
+                "suministro": {
+                    "type": "string",
+                    "enum": ["luz", "gas", "ambas"],
+                    "description": "qué comparar (por defecto luz); ambas añade las ofertas "
+                    "conjuntas y la alternativa de contratar por separado",
+                },
                 "franjas": {
                     "type": "array",
                     "items": {"type": "number"},
@@ -75,25 +114,42 @@ TOOLS: list[dict[str, Any]] = [
             },
             "additionalProperties": False,
         },
-        "annotations": {"readOnlyHint": True, "openWorldHint": True},
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "consulta": {"type": "object"},
+                "ofertas": {"type": "array", "items": {"type": "object"}},
+                "analisis": {"type": "object"},
+            },
+            "required": ["consulta", "ofertas", "analisis"],
+        },
+        "annotations": _SOLO_LECTURA | {"openWorldHint": True},
     },
     {
         "name": "leer_factura_qr",
-        "description": "Interpreta el QR de una factura de luz (ya decodificado): código "
-        "postal, potencia, consumo por tramos del periodo y anual, fechas e importe. "
-        "No consulta la CNMC.",
+        "description": "Interpreta el texto de un QR de factura de luz ya decodificado (la URL "
+        "de comparador.cnmc.gob.es que lleva impresa) y devuelve sus datos, sin consultar "
+        "la CNMC: `{codigo_postal, potencia_p1, potencia_p2, consumo_anual: [punta, llano, "
+        "valle], consumo_factura, importe, comercializadora, inicio_factura, fin_factura, "
+        "...}`, consumos en kWh e importe en euros. Úsala cuando tengas el texto del QR "
+        "(p. ej. el usuario pega la URL) y quieras ver los datos; si lo que tienes es el "
+        "PDF o la imagen, usa `leer_factura_archivo`, y para comparar ofertas pasa el QR "
+        "directamente a `comparar_ofertas`. " + _ERROR,
         "inputSchema": {
             "type": "object",
             "properties": {"qr": _QR},
             "required": ["qr"],
             "additionalProperties": False,
         },
-        "annotations": {"readOnlyHint": True, "openWorldHint": False},
+        "outputSchema": _DATOS_FACTURA,
+        "annotations": _SOLO_LECTURA | {"openWorldHint": False},
     },
     {
-        "name": "leer_factura",
+        "name": "leer_factura_archivo",
         "description": "Lee el QR de una factura de luz en PDF o imagen del disco local y "
-        "devuelve sus datos. Necesita el extra `facturas` (y poppler-utils para PDFs).",
+        "devuelve los mismos datos que `leer_factura_qr`. Úsala cuando tengas el archivo "
+        "y no el texto del QR. Necesita el extra `facturas` (y poppler-utils para PDF); "
+        "sin ellos, o si el archivo no tiene QR del comparador, devuelve un error. " + _ERROR,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -102,7 +158,8 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["ruta"],
             "additionalProperties": False,
         },
-        "annotations": {"readOnlyHint": True, "openWorldHint": False},
+        "outputSchema": _DATOS_FACTURA,
+        "annotations": _SOLO_LECTURA | {"openWorldHint": False},
     },
 ]
 
@@ -173,7 +230,7 @@ def llamar(nombre: str, argumentos: dict[str, Any]) -> dict[str, Any]:
         return _comparar_ofertas(argumentos)
     if nombre == "leer_factura_qr":
         return dataclasses.asdict(desde_qr(str(argumentos["qr"])))
-    if nombre == "leer_factura":
+    if nombre == "leer_factura_archivo":
         return dataclasses.asdict(desde_fichero(str(argumentos["ruta"])))
     raise KeyError(nombre)
 
@@ -210,10 +267,18 @@ def handle(message: Any) -> dict[str, Any] | None:
         if nombre not in {t["name"] for t in TOOLS} or not isinstance(argumentos, dict):
             return _error(msg_id, -32602, f"unknown tool or invalid arguments: {nombre}")
         try:
-            texto, es_error = json.dumps(llamar(str(nombre), argumentos), ensure_ascii=False), False
+            datos = llamar(str(nombre), argumentos)
         except Exception as e:  # el modelo debe ver el fallo para corregir la llamada
-            texto, es_error = f"{type(e).__name__}: {e}", True
-        result = {"content": [{"type": "text", "text": texto}], "isError": es_error}
+            fallo = {"ok": False, "error": type(e).__name__, "message": str(e)}
+            texto = json.dumps(fallo, ensure_ascii=False)
+            result = {"content": [{"type": "text", "text": texto}], "isError": True}
+        else:
+            texto = json.dumps(datos, ensure_ascii=False)
+            result = {
+                "content": [{"type": "text", "text": texto}],
+                "structuredContent": datos,
+                "isError": False,
+            }
     else:
         return _error(msg_id, -32601, f"method not found: {method}")
     return {"jsonrpc": "2.0", "id": msg_id, "result": result}
