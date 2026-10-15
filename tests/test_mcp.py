@@ -54,7 +54,7 @@ def test_handshake_y_lista_de_herramientas() -> None:
     assert init["result"]["protocolVersion"] == mcp.PROTOCOL_VERSIONS[0]
     assert init["result"]["serverInfo"]["name"] == "comparador-luz-gas"
     nombres = {t["name"] for t in lista["result"]["tools"]}
-    assert nombres == {"comparar_ofertas", "leer_factura_qr", "leer_factura"}
+    assert nombres == {"comparar_ofertas", "leer_factura_qr", "leer_factura_archivo"}
 
 
 def test_comparar_devuelve_el_json_del_cli(sin_red: list[Consulta]) -> None:
@@ -78,8 +78,23 @@ def test_comparar_desde_el_qr(sin_red: list[Consulta]) -> None:
 def test_argumentos_insuficientes_son_error_de_la_herramienta(sin_red: list[Consulta]) -> None:
     r = _llamar("comparar_ofertas", cp="28001")
     assert r["isError"]
-    assert "consumo" in r["content"][0]["text"]
+    fallo = json.loads(r["content"][0]["text"])
+    assert fallo["ok"] is False
+    assert "consumo" in fallo["message"]
     assert not sin_red
+
+
+def test_las_respuestas_llevan_contenido_estructurado(sin_red: list[Consulta]) -> None:
+    r = _llamar("comparar_ofertas", cp="28001", consumo=2500)
+    assert r["structuredContent"] == json.loads(r["content"][0]["text"])
+
+
+def test_todas_las_herramientas_son_de_solo_lectura() -> None:
+    (lista,) = _sesion({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    for herramienta in lista["result"]["tools"]:
+        assert herramienta["annotations"]["readOnlyHint"] is True
+        assert herramienta["annotations"]["idempotentHint"] is True
+        assert "outputSchema" in herramienta
 
 
 def test_leer_factura_qr() -> None:
