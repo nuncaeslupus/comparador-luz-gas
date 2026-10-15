@@ -113,6 +113,27 @@ comparador-luz-gas --qr 'https://comparador.cnmc.gob.es/comparador/QRE?cp=...'
 comparador-luz-gas --factura factura.pdf --solo-datos             # lee el QR y nada más
 ```
 
+### Servidor MCP
+
+`comparador-luz-gas mcp` sirve el comparador por stdio a Claude Desktop y cualquier
+otro cliente MCP, sin dependencias extra. Herramientas:
+
+- `comparar_ofertas`: lo mismo que el CLI en JSON (ofertas + análisis a largo plazo). Basta
+  `qr`, o `cp` + `consumo`; `max_ofertas` (20 por defecto) recorta la lista.
+- `leer_factura_qr`: los datos del QR de una factura, sin consultar la CNMC.
+- `leer_factura`: lee el QR de un PDF o imagen del disco (necesita el extra `facturas`).
+
+```json
+{
+  "mcpServers": {
+    "comparador-luz-gas": { "command": "uvx", "args": ["comparador-luz-gas", "mcp"] }
+  }
+}
+```
+
+Para `leer_factura`: `"args": ["--from", "comparador-luz-gas[facturas]", "comparador-luz-gas", "mcp"]`.
+También hay `Dockerfile` (`docker run -i --rm comparador-luz-gas`).
+
 ## Leer la factura: el QR, no el texto
 
 Desde la Resolución de la CNMC de 24/06/2021 (modificada por
