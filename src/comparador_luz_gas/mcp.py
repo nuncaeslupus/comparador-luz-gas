@@ -37,7 +37,7 @@ _SOLO_LECTURA: dict[str, Any] = {
 # Una sola forma de error para las tres herramientas.
 _ERROR = (
     "Si no puede, devuelve un resultado de error cuyo texto es JSON "
-    '`{"ok": false, "error", "message"}` explicando qué falta o qué falló.'
+    '`{"ok": false, "error": "<tipo de error>", "message": "<qué falta o qué falló>"}`.'
 )
 
 _DATOS_FACTURA: dict[str, Any] = {
@@ -59,8 +59,9 @@ TOOLS: list[dict[str, Any]] = [
         "description": "Consulta el comparador oficial de la CNMC (una llamada a su API, "
         "unos segundos) y devuelve las ofertas de luz y/o gas ordenadas por precio, con un "
         "análisis a varios años (rotar de oferta, permanencias, precio fijo vs. por tramos). "
-        "Basta `qr` (el de una factura de luz) o `cp` + `consumo`; para gas, `cp` + "
-        "`consumo_gas` y `suministro` gas o ambas. Sin `qr`, la potencia es 3,45 kW y el "
+        "Basta `qr` (el de una factura de luz) o `cp` + `consumo`; para solo gas, `cp` + "
+        "`consumo_gas` con `suministro` gas; para ambas, lo de luz (`qr`, o `cp` + "
+        "`consumo`) más `consumo_gas`. Sin `qr`, la potencia es 3,45 kW y el "
         "consumo se reparte por tramos con el perfil 2.0TD. Si ya tienes el texto del QR, "
         "pásalo aquí directamente: no hace falta `leer_factura_qr` antes. Devuelve "
         "`{consulta, ofertas: [{comercializadora, oferta, importe_primer_anio, "
