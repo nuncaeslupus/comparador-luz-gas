@@ -66,7 +66,7 @@ TOOLS: list[dict[str, Any]] = [
         "HTTPS sin caché (segundos; límite 90 s); las ofertas cambian con el mercado. Euros, "
         "sin desglose de impuestos. "
         + _ERROR
-        + " (p. ej. `ArgumentoInvalido` si falta `cp` o consumo, o uno de red).",
+        + " (`ArgumentoInvalido` si falta `cp` o consumo; otro si falla la red).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -127,13 +127,15 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "leer_factura_qr",
-        "description": "Interpreta el texto ya decodificado del QR de una factura de luz (la "
-        "URL de comparador.cnmc.gob.es que lleva impresa) y devuelve sus datos: consumos en "
-        "kWh, importes en euros. Úsala cuando tengas ese texto y quieras ver los datos; con "
-        "el PDF o la imagen, `leer_factura_archivo`; para comparar, pasa el QR directamente "
-        "a `comparar_ofertas`. Local e instantánea: no consulta la CNMC ni lee archivos. "
+        "description": "Interpreta el texto ya decodificado del QR de una factura de luz y "
+        "devuelve sus datos. `qr` es la URL de comparador.cnmc.gob.es impresa en la factura; "
+        "de su query se leen `cp` (código postal, obligatorio), `pP1`/`pP2` (potencias, kW), "
+        "`caP1`-`caP3` (consumo anual punta/llano/valle, kWh), `cfP1`-`cfP3` (consumo del "
+        "periodo facturado) e `imp` (importe, euros); un campo numérico ausente o ilegible "
+        "vale 0. Úsala para ver los datos; para comparar, pasa el QR a `comparar_ofertas`; "
+        "con el archivo, `leer_factura_archivo`. Local e instantánea: sin red ni disco. "
         + _ERROR
-        + ": `SinQR` si el texto no es un QR del comparador o no trae el parámetro `cp`.",
+        + ": `SinQR` si no es un QR del comparador o falta `cp` (p. ej. QR de gas o de pago).",
         "inputSchema": {
             "type": "object",
             "properties": {"qr": _QR},
@@ -145,15 +147,15 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "leer_factura_archivo",
-        "description": "Lee el QR de una factura de luz en PDF o imagen del disco del "
-        "servidor y devuelve los mismos datos que `leer_factura_qr`. Úsala cuando tengas el "
-        "archivo y no el texto del QR. Un `.pdf` se rasteriza página a página con pdftoppm "
-        "(poppler-utils); cualquier otra extensión se abre como imagen (PNG, JPG...). "
-        "Necesita el extra `facturas`. Sin red; unos segundos por PDF, más si es un escaneo "
+        "description": "Busca el QR del comparador en una factura de luz del disco del "
+        "servidor y devuelve los mismos datos que `leer_factura_qr`. `ruta`: si termina en "
+        "`.pdf` (sin distinguir mayúsculas) se rasteriza con pdftoppm y se recorren las "
+        "páginas hasta dar con el QR, y se usa el primero; con cualquier otra extensión se "
+        "abre como imagen (PNG, JPG...). Úsala cuando tengas el archivo y no el texto del "
+        "QR. Necesita el extra `facturas`. Sin red; segundos por PDF, más con un escaneo "
         "malo. "
         + _ERROR
-        + ": `FileNotFoundError`, `RuntimeError` si falta el extra o pdftoppm, o `SinQR` si "
-        "no hay QR del comparador.",
+        + ": `FileNotFoundError`, `RuntimeError` (falta el extra o pdftoppm) o `SinQR`.",
         "inputSchema": {
             "type": "object",
             "properties": {

@@ -81,7 +81,7 @@ wheels = [
 
 [[package]]
 name = "comparador-luz-gas"
-version = "0.2.3"
+version = "0.2.4"
 source = { editable = "." }
 
 [package.optional-dependencies]
