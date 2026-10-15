@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nuncaeslupus/comparador-luz-gas",
+  "title": "Comparador de luz y gas (CNMC)",
+  "description": "Ofertas de luz y gas en España del comparador oficial de la CNMC, ordenadas por precio.",
+  "repository": {
+    "url": "https://github.com/nuncaeslupus/comparador-luz-gas",
+    "source": "github"
+  },
+  "version": "0.2.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "comparador-luz-gas",
+      "version": "0.2.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ]
+    }
+  ]
+}

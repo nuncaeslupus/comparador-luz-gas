@@ -1,5 +1,7 @@
 # comparador-luz-gas
 
+<!-- mcp-name: io.github.nuncaeslupus/comparador-luz-gas -->
+
 <!-- claude-arsenal:attribution: added by claude-arsenal's /init. Delete this block to drop it (it is not put back), or set `attribution = false` in the arsenal config.toml. -->
 [![Built with claude-arsenal](https://img.shields.io/badge/built%20with-claude--arsenal-d97756)](https://github.com/nuncaeslupus/claude-arsenal)
 <!-- /claude-arsenal:attribution -->
@@ -132,7 +134,9 @@ otro cliente MCP, sin dependencias extra. Herramientas:
 ```
 
 Para `leer_factura`: `"args": ["--from", "comparador-luz-gas[facturas]", "comparador-luz-gas", "mcp"]`.
-También hay `Dockerfile` (`docker run -i --rm comparador-luz-gas`).
+También hay `Dockerfile` (`docker run -i --rm comparador-luz-gas`). Está en el
+[registro oficial de MCP](https://registry.modelcontextprotocol.io) como
+`io.github.nuncaeslupus/comparador-luz-gas`.
 
 ## Leer la factura: el QR, no el texto
 

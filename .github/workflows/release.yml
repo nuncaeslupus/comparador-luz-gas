@@ -79,6 +79,23 @@ jobs:
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
 
+  publish-mcp-registry:
+    name: Publish to the MCP Registry
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      # El registro verifica io.github.nuncaeslupus/* con el OIDC de GitHub Actions,
+      # y el paquete por la línea `mcp-name:` del README publicado en PyPI.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish
+
   github-release:
     name: Tag and create GitHub release
     needs: [guard, publish-pypi]
