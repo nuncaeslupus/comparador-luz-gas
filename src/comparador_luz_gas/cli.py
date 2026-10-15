@@ -38,9 +38,15 @@ def _tabla(r: Resultado, top: int) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["mcp"]:
+        from comparador_luz_gas.mcp import serve
+
+        return serve()
     p = argparse.ArgumentParser(
         prog="comparador-luz-gas",
-        description="Consulta el comparador de la CNMC; ofertas ordenadas por precio.",
+        description="Consulta el comparador de la CNMC; ofertas ordenadas por precio. "
+        "`comparador-luz-gas mcp` lo sirve como servidor MCP por stdio.",
     )
     p.add_argument("--cp", help="código postal, p. ej. 28013")
     p.add_argument("--consumo", type=float, help="consumo anual de luz en kWh")
