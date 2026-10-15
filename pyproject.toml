@@ -1,6 +1,6 @@
 [project]
 name = "comparador-luz-gas"
-version = "0.2.2"
+version = "0.2.3"
 description = "Consulta el comparador de ofertas de energía de la CNMC y devuelve JSON listo para un LLM"
 readme = "README.md"
 license = "MIT"

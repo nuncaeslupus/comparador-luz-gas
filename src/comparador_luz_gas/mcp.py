@@ -22,8 +22,9 @@ PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 
 _QR = {
     "type": "string",
-    "description": "contenido del QR de la factura de luz, ya decodificado "
-    "(la URL de comparador.cnmc.gob.es que lleva impresa)",
+    "description": "contenido del QR de la factura de luz, ya decodificado: la URL de "
+    "comparador.cnmc.gob.es que lleva impresa, p. ej. "
+    "`https://comparador.cnmc.gob.es/comparador/QRE?cp=28013&pP1=4.6&caP1=740...`",
 }
 
 # Ninguna herramienta escribe nada: repetir una llamada con los mismos
@@ -35,10 +36,7 @@ _SOLO_LECTURA: dict[str, Any] = {
 }
 
 # Una sola forma de error para las tres herramientas.
-_ERROR = (
-    "Si no puede, devuelve un resultado de error cuyo texto es JSON "
-    '`{"ok": false, "error": "<tipo de error>", "message": "<qué falta o qué falló>"}`.'
-)
+_ERROR = 'Si falla, devuelve un error con texto JSON `{"ok": false, "error", "message"}`'
 
 _DATOS_FACTURA: dict[str, Any] = {
     "type": "object",
@@ -56,18 +54,16 @@ _DATOS_FACTURA: dict[str, Any] = {
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "comparar_ofertas",
-        "description": "Consulta el comparador oficial de la CNMC (una llamada a su API, "
-        "unos segundos) y devuelve las ofertas de luz y/o gas ordenadas por precio, con un "
-        "análisis a varios años (rotar de oferta, permanencias, precio fijo vs. por tramos). "
-        "Basta `qr` (el de una factura de luz) o `cp` + `consumo`; para solo gas, `cp` + "
-        "`consumo_gas` con `suministro` gas; para ambas, lo de luz (`qr`, o `cp` + "
-        "`consumo`) más `consumo_gas`. Sin `qr`, la potencia es 3,45 kW y el "
-        "consumo se reparte por tramos con el perfil 2.0TD. Si ya tienes el texto del QR, "
-        "pásalo aquí directamente: no hace falta `leer_factura_qr` antes. Devuelve "
-        "`{consulta, ofertas: [{comercializadora, oferta, importe_primer_anio, "
-        "importe_segundo_anio, permanencia, verde, ...}], analisis: {resumen, opciones, "
-        "avisos, ...}, cobertura, factura?}`; importes en euros tal como los da la CNMC, "
-        "sin desglose de impuestos. " + _ERROR,
+        "description": "Consulta el comparador oficial de la CNMC y devuelve las ofertas de luz "
+        "y/o gas, de la más barata a la más cara, con un análisis a varios años (rotar de "
+        "oferta, permanencias, fijo vs. tramos). Luz: `qr`, o `cp` + `consumo`; gas: "
+        "`suministro` gas, `cp` + `consumo_gas`; ambas: lo de luz más `consumo_gas`. `cp`, "
+        "`consumo` o `potencia` explícitos prevalecen sobre el `qr`; sin `qr`, 3,45 kW y "
+        "reparto 2.0TD. Con el texto del QR no hace falta `leer_factura_qr`. Una petición "
+        "HTTPS sin caché (segundos; límite 90 s); las ofertas cambian con el mercado. Euros, "
+        "sin desglose de impuestos. "
+        + _ERROR
+        + " (p. ej. `ArgumentoInvalido` si falta `cp` o consumo, o uno de red).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -128,14 +124,13 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "leer_factura_qr",
-        "description": "Interpreta el texto de un QR de factura de luz ya decodificado (la URL "
-        "de comparador.cnmc.gob.es que lleva impresa) y devuelve sus datos, sin consultar "
-        "la CNMC: `{codigo_postal, potencia_p1, potencia_p2, consumo_anual: [punta, llano, "
-        "valle], consumo_factura, importe, comercializadora, inicio_factura, fin_factura, "
-        "...}`, consumos en kWh e importe en euros. Úsala cuando tengas el texto del QR "
-        "(p. ej. el usuario pega la URL) y quieras ver los datos; si lo que tienes es el "
-        "PDF o la imagen, usa `leer_factura_archivo`, y para comparar ofertas pasa el QR "
-        "directamente a `comparar_ofertas`. " + _ERROR,
+        "description": "Interpreta el texto ya decodificado del QR de una factura de luz (la "
+        "URL de comparador.cnmc.gob.es que lleva impresa) y devuelve sus datos: consumos en "
+        "kWh, importes en euros. Úsala cuando tengas ese texto y quieras ver los datos; con "
+        "el PDF o la imagen, `leer_factura_archivo`; para comparar, pasa el QR directamente "
+        "a `comparar_ofertas`. Local e instantánea: no consulta la CNMC ni lee archivos. "
+        + _ERROR
+        + ": `SinQR` si el texto no es un QR del comparador o no trae el parámetro `cp`.",
         "inputSchema": {
             "type": "object",
             "properties": {"qr": _QR},
@@ -147,14 +142,24 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "leer_factura_archivo",
-        "description": "Lee el QR de una factura de luz en PDF o imagen del disco local y "
-        "devuelve los mismos datos que `leer_factura_qr`. Úsala cuando tengas el archivo "
-        "y no el texto del QR. Necesita el extra `facturas` (y poppler-utils para PDF); "
-        "sin ellos, o si el archivo no tiene QR del comparador, devuelve un error. " + _ERROR,
+        "description": "Lee el QR de una factura de luz en PDF o imagen del disco del "
+        "servidor y devuelve los mismos datos que `leer_factura_qr`. Úsala cuando tengas el "
+        "archivo y no el texto del QR. Un `.pdf` se rasteriza página a página con pdftoppm "
+        "(poppler-utils); cualquier otra extensión se abre como imagen (PNG, JPG...). "
+        "Necesita el extra `facturas`. Sin red; unos segundos por PDF, más si es un escaneo "
+        "malo. "
+        + _ERROR
+        + ": `FileNotFoundError`, `RuntimeError` si falta el extra o pdftoppm, o `SinQR` si "
+        "no hay QR del comparador.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "ruta": {"type": "string", "description": "ruta al PDF o imagen de la factura"}
+                "ruta": {
+                    "type": "string",
+                    "description": "ruta al PDF o imagen de la factura en el disco del "
+                    "servidor; mejor absoluta (una relativa parte del directorio del "
+                    "servidor), p. ej. `/home/ana/facturas/2025-03.pdf`",
+                }
             },
             "required": ["ruta"],
             "additionalProperties": False,
