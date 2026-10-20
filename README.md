@@ -76,9 +76,9 @@ Desde Python:
 from comparador_luz_gas import Consulta, comparar, desde_fichero, interpretar
 
 r = comparar(Consulta(codigo_postal="28013", consumo_anual_luz=2600, potencia=3.45))
-r.ofertas[0]                       # la más barata el primer año
-r.to_dict()                        # lo mismo que imprime el CLI
-interpretar(r, anios=3)["resumen"] # valoración a 3 años
+r.ofertas[0]  # la más barata el primer año
+r.to_dict()  # lo mismo que imprime el CLI
+interpretar(r, anios=3)["resumen"]  # valoración a 3 años
 
 r = comparar(desde_fichero("factura.pdf").consulta())  # todo desde el QR de la factura
 ```
