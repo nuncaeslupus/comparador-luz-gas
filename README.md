@@ -105,7 +105,7 @@ También hay `Dockerfile` (`docker run -i --rm comparador-luz-gas`).
 
 | herramienta | qué hace |
 |---|---|
-| `comparar_ofertas` | ofertas + análisis a largo plazo, como el JSON del CLI. Basta `qr`, o `cp` + `consumo`; `max_ofertas` (20 por defecto) recorta la lista |
+| `comparar_ofertas` | ofertas + análisis a largo plazo, como el JSON del CLI. Basta `qr`, o `cp` + `consumo` (luz); para gas, `suministro: "gas"` con `cp` + `consumo_gas`; para ambas, `suministro: "ambas"` con `cp`, `consumo` y `consumo_gas`; `max_ofertas` (20 por defecto) recorta la lista |
 | `leer_factura_qr` | los datos del QR de una factura, sin consultar la CNMC |
 | `leer_factura_archivo` | lee el QR de un PDF o imagen del disco (necesita el extra `facturas`) |
 
@@ -149,7 +149,7 @@ comparador-luz-gas --cp 28013 --consumo 2600 --texto --top 5      # tabla
 comparador-luz-gas --cp 28013 --consumo 2600 --sin-permanencia
 comparador-luz-gas --cp 28013 --consumo 2600 --consumo-gas 6000 --suministro ambas
 comparador-luz-gas --cp 28013 --consumo 2600 --franjas 600,700,1300 --anios 5
-comparador-luz-gas --factura factura.pdf --texto                  # datos del QR
+comparador-luz-gas --factura factura.pdf --texto                  # compara con los datos del QR
 comparador-luz-gas --factura factura.pdf --mensual --texto        # coste de ese periodo
 comparador-luz-gas --qr 'https://comparador.cnmc.gob.es/comparador/QRE?cp=...'
 comparador-luz-gas --factura factura.pdf --solo-datos             # solo lee el QR
