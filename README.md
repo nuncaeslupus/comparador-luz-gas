@@ -2,130 +2,94 @@
 
 <!-- mcp-name: io.github.nuncaeslupus/comparador-luz-gas -->
 
+[![PyPI](https://img.shields.io/pypi/v/comparador-luz-gas)](https://pypi.org/project/comparador-luz-gas/)
+[![CI](https://github.com/nuncaeslupus/comparador-luz-gas/actions/workflows/ci.yml/badge.svg)](https://github.com/nuncaeslupus/comparador-luz-gas/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![comparador-luz-gas MCP server – quality and maintenance score on Glama](https://glama.ai/mcp/servers/nuncaeslupus/comparador-luz-gas/badges/score.svg)](https://glama.ai/mcp/servers/nuncaeslupus/comparador-luz-gas)
 <!-- claude-arsenal:attribution: added by claude-arsenal's /init. Delete this block to drop it (it is not put back), or set `attribution = false` in the arsenal config.toml. -->
 [![Built with claude-arsenal](https://img.shields.io/badge/built%20with-claude--arsenal-d97756)](https://github.com/nuncaeslupus/claude-arsenal)
 <!-- /claude-arsenal:attribution -->
-
-[![comparador-luz-gas MCP server – quality and maintenance score on Glama](https://glama.ai/mcp/servers/nuncaeslupus/comparador-luz-gas/badges/score.svg)](https://glama.ai/mcp/servers/nuncaeslupus/comparador-luz-gas)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/nuncaeslupus/comparador-luz-gas/main/docs/hero.png" width="100%" alt="comparador-luz-gas: los 83 parámetros del formulario de la CNMC se quedan en tres datos, código postal, consumo y potencia, o el QR de la factura, y salen las ofertas ordenadas de más barata a más cara, con el aviso de qué comercializadoras grandes faltan">
 </p>
 
-El [comparador de ofertas de energía de la CNMC](https://comparador.cnmc.gob.es/) es
-la única comparativa oficial de tarifas de luz y gas en España, pero solo se puede
-usar rellenando su formulario web. Por debajo hay una API pública sin autenticación
-que, para una consulta doméstica normal, pide **83 parámetros**.
+**El comparador oficial de tarifas de luz y gas de la CNMC, como librería, CLI y servidor MCP.**
 
-Esto es un proxy con una API clara por delante: tres datos entran, JSON ordenado por
-precio sale. Pensado para que lo llame un LLM o un script, sin pasar por la web.
+El [comparador de la CNMC](https://comparador.cnmc.gob.es/) es la única comparativa
+oficial de ofertas de energía en España, pero solo se usa a través de un formulario web;
+su API pública pide 83 parámetros por consulta. Este proyecto la reduce a tres datos
+(código postal, consumo, potencia) o al QR de la factura, y devuelve las ofertas en JSON
+ordenadas por precio, con un análisis a varios años y el aviso de qué comercializadoras
+grandes no están en el comparador.
+
+## Inicio rápido
+
+```bash
+uvx comparador-luz-gas --cp 28013 --consumo 2600 --texto --top 5
+```
+
+O instalado: `pip install comparador-luz-gas`. Para leer el QR de un PDF o una imagen,
+`pip install "comparador-luz-gas[facturas]"` y `sudo apt install libzbar0 poppler-utils`.
+
+## Ejemplo
+
+Salida real (consulta del 2026-10-20; los precios cambian con el mercado):
+
+```text
+$ comparador-luz-gas --cp 28013 --consumo 2600 --texto --top 5
+  1er año    2º año  comercializadora                       oferta
+----------------------------------------------------------------------------------------------------
+   653.02      0.00  Comercializadora de referencia         PVPC Histórico 19/10/2025 - 19/10/2026
+   655.15    655.15  ENERGIA NUFRI SL                       ENERGIA NUFRI - CON HORARIOS
+   657.85    721.45  niba                                   niba Zen
+   661.53    661.53  ENERGIA NUFRI SL                       ENERGIA NUFRI - UNIVERSAL CON HORARIOS
+   662.80    713.51  CIDE HCENERGÍA S.A.U                   Plan Estrella Dúo
+
+70 ofertas de 28 comercializadoras.
+No están en el comparador: ENDESA, IBERDROLA, TOTALENERGIES, HOLALUZ, EDP, GALP.
+[...]
+
+A 3 años, lo más barato es ENERGIA NUFRI SL «ENERGIA NUFRI - CON HORARIOS»: 1965.45 €
+(655.15 €/año en régimen). ¿Prefieres pagar lo mismo a cualquier hora o puedes concentrar
+el consumo en las horas baratas? Con tu reparto actual gana la discriminación horaria por
+41.79 €: [...]
+- La mejor a 3 años es solo para nuevos clientes: [...]
+- El PVPC sale 2.13 € más barato al año que la mejor fija (653.02 € frente a 655.15 €),
+  pero es variable: [...]
+- 13 de 70 ofertas tienen permanencia (penalización de 16.87 a 37.42 €).
+```
+
+Sin `--texto` imprime JSON con las claves `modo`, `importes`, `consulta`, `cobertura`,
+`ofertas`, `alternativa_por_separado` y `analisis`. Cada oferta:
+
+```json
+{"comercializadora": "Comercializadora de referencia", "oferta": "PVPC Histórico 19/10/2025 - 19/10/2026",
+ "importe_primer_anio": 653.02, "importe_segundo_anio": 0.0, "permanencia": false,
+ "servicios_adicionales": false, "verde": false, "validez": "Válida para consumidores con derecho a PVPC",
+ "precio_unico": false, "id_oferta": 180, "penalizacion_estimada": 0, "solo_nuevos_clientes": false}
+```
+
+Desde Python:
 
 ```python
-from comparador_luz_gas import Consulta, comparar
+from comparador_luz_gas import Consulta, comparar, desde_fichero, interpretar
 
 r = comparar(Consulta(codigo_postal="28013", consumo_anual_luz=2600, potencia=3.45))
-r.ofertas[0]  # Oferta(comercializadora='CIDE HCENERGÍA S.A.U', importe_primer_anio=590.19, ...)
+r.ofertas[0]  # la más barata el primer año
+r.to_dict()  # lo mismo que imprime el CLI
+interpretar(r, anios=3)["resumen"]  # valoración a 3 años
+
+r = comparar(desde_fichero("factura.pdf").consulta())  # todo desde el QR de la factura
 ```
 
-```bash
-comparador-luz-gas --cp 28013 --consumo 2600 --texto
-```
-
-Además hace dos cosas que la web no: lee el **QR de la factura** para no tener que
-teclear nada, y dice en cada respuesta **qué comercializadoras grandes faltan**, que
-es la trampa principal de este comparador.
-
-## Instalación
-
-Está en [PyPI](https://pypi.org/project/comparador-luz-gas/):
-
-```bash
-pip install comparador-luz-gas              # solo la consulta
-pip install "comparador-luz-gas[facturas]"  # + leer el QR de un PDF o imagen
-sudo apt install libzbar0 poppler-utils     # lo que necesita ese extra
-```
-
-Con `uv`, `uv add comparador-luz-gas`; o sin instalar nada,
-`uvx comparador-luz-gas --cp 28013 --consumo 2600 --texto`.
-
-## La API
-
-### `Consulta` — lo que preguntas
-
-| campo | por defecto | qué es |
-|---|---|---|
-| `codigo_postal` | — | obligatorio, p. ej. `"28013"` |
-| `consumo_anual_luz` | `0` | kWh/año |
-| `consumo_anual_gas` | `0` | kWh/año |
-| `potencia` | `3.45` | kW contratados |
-| `suministro` | `"luz"` | `"luz"`, `"gas"` o `"ambas"` |
-| `franjas` | `None` | `(punta, llano, valle)`; si falta, se reparte con el perfil 2.0TD |
-| `vivienda` | `True` | `False` si el suministro no es doméstico |
-| `permanencia` | `2` | `1` = solo ofertas sin permanencia |
-| `servicios_adicionales` | `2` | `1` = solo ofertas sin servicios contratados aparte |
-
-`comparar(consulta, timeout=90)` devuelve un `Resultado`. Es una sola petición HTTP:
-tarda entre 3 y 8 segundos, que es lo que tarda la CNMC.
-
-### `Resultado` — lo que devuelve
-
-`r.ofertas` viene ordenado de más barato a más caro. `r.to_dict()` es lo que imprime
-el CLI en JSON:
-
-```jsonc
-{
-  "modo": "anual",
-  "importes": "importe_primer_anio / importe_segundo_anio son el coste estimado de 12 meses.",
-  "consulta": { "codigo_postal": "28013", "consumo_anual_luz": 2600.0, "reparto_franjas": [745, 639, 1216] },
-  "cobertura": {
-    "aviso": "El comparador de la CNMC solo incluye ofertas que...",
-    "comercializadoras_en_resultado": 28,
-    "comercializadoras": ["ADX RENOVABLES, S.L.", "..."],
-    "grandes_ausentes": ["ENDESA", "IBERDROLA", "TOTALENERGIES", "..."]
-  },
-  "ofertas": [
-    {
-      "comercializadora": "CIDE HCENERGÍA S.A.U",
-      "oferta": "Plan Estrella Dúo",
-      "importe_primer_anio": 590.19,   // con el descuento de bienvenida
-      "importe_segundo_anio": 640.9,   // ya sin él
-      "permanencia": false,
-      "servicios_adicionales": false,
-      "verde": false,
-      "validez": "Oferta válida solo para nuevos clientes",
-      "precio_unico": true,
-      "id_oferta": 7137
-    }
-  ],
-  "alternativa_por_separado": null     // con suministro="ambas": luz + gas sueltos
-}
-```
-
-Los importes **no llevan desglose de impuestos**: la CNMC no lo publica en esta
-respuesta. Antes de cambiarte, confirma con la comercializadora si son con IVA.
-
-### CLI
-
-```bash
-comparador-luz-gas --cp 28013 --consumo 2600                      # JSON
-comparador-luz-gas --cp 28013 --consumo 2600 --texto --top 5      # tabla legible
-comparador-luz-gas --cp 28013 --consumo 2600 --sin-permanencia
-comparador-luz-gas --cp 28013 --consumo 2600 --consumo-gas 6000 --suministro ambas
-comparador-luz-gas --factura factura.pdf --texto                  # datos del QR
-comparador-luz-gas --factura factura.pdf --mensual --texto        # coste de esa factura
-comparador-luz-gas --qr 'https://comparador.cnmc.gob.es/comparador/QRE?cp=...'
-comparador-luz-gas --factura factura.pdf --solo-datos             # lee el QR y nada más
-```
+## Uso con agentes de IA
 
 ### Servidor MCP
 
-`comparador-luz-gas mcp` sirve el comparador por stdio a Claude Desktop y cualquier
-otro cliente MCP, sin dependencias extra. Herramientas:
-
-- `comparar_ofertas`: lo mismo que el CLI en JSON (ofertas + análisis a largo plazo). Basta
-  `qr`, o `cp` + `consumo`; `max_ofertas` (20 por defecto) recorta la lista.
-- `leer_factura_qr`: los datos del QR de una factura, sin consultar la CNMC.
-- `leer_factura_archivo`: lee el QR de un PDF o imagen del disco (necesita el extra `facturas`).
+`comparador-luz-gas mcp` sirve el comparador por stdio, sin dependencias extra. Está en
+el [registro oficial de MCP](https://registry.modelcontextprotocol.io) como
+`io.github.nuncaeslupus/comparador-luz-gas`.
 
 ```json
 {
@@ -135,171 +99,94 @@ otro cliente MCP, sin dependencias extra. Herramientas:
 }
 ```
 
-Para `leer_factura_archivo`: `"args": ["--from", "comparador-luz-gas[facturas]", "comparador-luz-gas", "mcp"]`.
-También hay `Dockerfile` (`docker run -i --rm comparador-luz-gas`). Está en el
-[registro oficial de MCP](https://registry.modelcontextprotocol.io) como
-`io.github.nuncaeslupus/comparador-luz-gas`.
+Para leer facturas del disco:
+`"args": ["--from", "comparador-luz-gas[facturas]", "comparador-luz-gas", "mcp"]`.
+También hay `Dockerfile` (`docker run -i --rm comparador-luz-gas`).
 
-## Leer la factura: el QR, no el texto
+| herramienta | qué hace |
+|---|---|
+| `comparar_ofertas` | ofertas + análisis a largo plazo, como el JSON del CLI. Basta `qr`, o `cp` + `consumo`; `max_ofertas` (20 por defecto) recorta la lista |
+| `leer_factura_qr` | los datos del QR de una factura, sin consultar la CNMC |
+| `leer_factura_archivo` | lee el QR de un PDF o imagen del disco (necesita el extra `facturas`) |
 
-Desde la Resolución de la CNMC de 24/06/2021 (modificada por
-[BOE-A-2022-16989](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2022-16989)) **toda
-factura de electricidad lleva un QR** que apunta al comparador con el suministro ya
-desglosado:
+Los errores vuelven como `{"ok": false, "error": "ArgumentoInvalido", "message": "..."}`.
 
-```
-https://comparador.cnmc.gob.es/comparador/QRE?cp=28013&pP1=4.6&pP2=4.6
-   &caP1=740&caP2=660&caP3=757&cups=ES0000000000000000XX&imp=72.50&prE1=0.2288...
-```
+### Desde el CLI
 
-Código postal, potencias, consumo anual por franja, consumo y fechas del periodo
-facturado, precios e importe: justo lo que pide el comparador. Como **el formato lo
-fija la CNMC y no la comercializadora**, sirve para cualquier compañía — no hace
-falta un parser por marca.
+Un agente sin MCP puede llamar al CLI: por defecto escribe JSON en stdout. `modo` e
+`importes` dicen si los importes son anuales o de un periodo de factura, para que no se
+confunda un mes con un año. Un argumento inválido sale con código 2 y el mensaje en
+stderr.
 
-```python
-from comparador_luz_gas import comparar, desde_fichero, desde_qr
+## Cómo funciona
 
-f = desde_fichero("factura.pdf")  # PDF o imagen: localiza y decodifica el QR (~5 s)
-f = desde_qr(texto_del_qr)  # si la app ya lo escaneó: solo urllib.parse
-r = comparar(f.consulta())
-```
+- **Una petición a la API oficial** de la CNMC (3-8 s, límite 90 s). No hay precios
+  propios ni caché: solo cuentas sobre lo que responde la CNMC.
+- **Lee el QR de la factura.** Desde la Resolución de la CNMC de 24/06/2021
+  ([BOE-A-2022-16989](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2022-16989)) toda
+  factura de luz lleva un QR con código postal, potencias, consumo anual por franja,
+  periodo e importe. El formato lo fija la CNMC, así que vale para cualquier
+  comercializadora. `desde_qr()` no tiene dependencias: una app que ya escaneó el QR le
+  pasa la cadena.
+- **Dos modos.** Por defecto, coste estimado de 12 meses. Con `--mensual`
+  (`f.consulta(mensual=True)`), el coste del periodo concreto de la factura, comparable
+  con el importe impreso.
+- **Análisis a largo plazo** (`interpretar()`, clave `analisis`): coste a N años
+  (`primer_anio + (N-1) × siguientes`), porque el primer puesto suele ganarlo un
+  descuento de bienvenida que se cobra una vez. Separa precio único frente a
+  discriminación horaria, señala las ofertas solo para nuevos clientes, la permanencia y
+  su penalización, y el PVPC frente a la mejor fija.
+- **Cobertura.** Cada respuesta lista las comercializadoras presentes y las grandes que
+  faltan (`cobertura.grandes_ausentes`).
+- **Anualizar.** `anualizar(facturas)` extrapola el consumo de varias facturas recientes
+  en vez de usar los 12 meses rodantes del QR.
 
-`desde_qr()` no tiene dependencias, así que una app que escanee el QR con la cámara
-puede mandar la cadena y saltarse el extra de imagen por completo.
+## CLI
 
-**Si la factura está escaneada**, depende de a cuánto: el QR mide unos 3 px por módulo
-a 300 dpi, justo en el límite de los decodificadores. 400 dpi aguanta JPEG, giro y
-desenfoque; 300 dpi va bien salvo desenfoque; 200 dpi solo si está limpio; 150 dpi es
-imposible. Los números y el porqué, en [docs/qr-escaneado.md](docs/qr-escaneado.md).
-
-### Dos modos: anual y factura
-
-Por defecto la CNMC estima el **coste de doce meses** a partir del consumo anual del
-QR. Con `--mensual` (`f.consulta(mensual=True)`) calcula lo que habría costado **ese
-periodo de facturación concreto**, con sus fechas y su consumo reales, así que sale
-en la misma escala que el importe impreso en la factura:
-
-```
-Periodo 2026-07-14→2026-08-16: 146 kWh, pagaste 72.50 €.
-
-  periodo  sin dto.  comercializadora                       oferta
-    40.03     51.03  CIDE HCENERGÍA S.A.U                   Plan Estrella Dúo
-    47.20     47.20  TRACTAMENT I SELECCIÓ DE RESIDUS, S.A. TARIFA FIJA CLÁSICA - 2.0TD
-```
-
-Dos avisos al leerlo:
-
-- El importe de la factura incluye cosas que el comparador no cuenta: servicios
-  adicionales, alquiler de equipos, bono social. El QR los desglosa (`impSA`,
-  `finBS`); réstalos antes de comparar.
-- La segunda columna es el mismo periodo **sin descuento de bienvenida**, no un
-  segundo año. En el PVPC sale 0 porque no hay promoción que quitar.
-
-En JSON, `"modo"` e `"importes"` dicen cuál de los dos es, para que un LLM no lea un
-mes como si fuera un año.
-
-## Valoración a largo plazo, sin LLM
-
-`interpretar(resultado, anios=3)` (clave `"analisis"` del JSON de la CLI) es aritmética
-sobre lo que ya devuelve la CNMC, pensada para que un LLM o una persona no lea mal el
-ranking. El comparador ordena por `importe_primer_anio` y ese puesto lo gana casi
-siempre una oferta de bienvenida, que **solo se cobra una vez**:
-
-```python
-from comparador_luz_gas import comparar, Consulta, interpretar
-
-a = interpretar(comparar(Consulta(codigo_postal="28013", consumo_anual_luz=2200)), anios=3)
-print(a["resumen"])
-for aviso in a["avisos"]:
-    print("-", aviso)
+```bash
+comparador-luz-gas --cp 28013 --consumo 2600                      # JSON
+comparador-luz-gas --cp 28013 --consumo 2600 --texto --top 5      # tabla
+comparador-luz-gas --cp 28013 --consumo 2600 --sin-permanencia
+comparador-luz-gas --cp 28013 --consumo 2600 --consumo-gas 6000 --suministro ambas
+comparador-luz-gas --cp 28013 --consumo 2600 --franjas 600,700,1300 --anios 5
+comparador-luz-gas --factura factura.pdf --texto                  # datos del QR
+comparador-luz-gas --factura factura.pdf --mensual --texto        # coste de ese periodo
+comparador-luz-gas --qr 'https://comparador.cnmc.gob.es/comparador/QRE?cp=...'
+comparador-luz-gas --factura factura.pdf --solo-datos             # solo lee el QR
 ```
 
-Devuelve el coste a N años de cada oferta (`primer_anio + (N-1) × siguientes`) y, sobre
-todo, **separa las dos decisiones que el ranking mezcla**:
+Otras opciones: `--potencia` (kW, 3,45 por defecto), `--empresa` (suministro que no es
+vivienda). `comparador-luz-gas --help` las lista todas.
 
-- `opciones.todas_las_horas_igual` vs `opciones.con_discriminacion_horaria`, con la
-  diferencia ya calculada en `pregunta` — es lo que hay que preguntarle al usuario antes
-  de recomendarle nada, porque una oferta por tramos solo compensa si va a mover consumo.
-- Dentro de cada una, `sin_restriccion_de_nuevo_cliente`: la mejor que también puede
-  contratar quien ya es cliente de esa comercializadora.
+Campos de `Consulta`: `codigo_postal` (obligatorio), `consumo_anual_luz`,
+`consumo_anual_gas`, `potencia` (3.45), `suministro` (`"luz"`, `"gas"`, `"ambas"`),
+`franjas` (`(punta, llano, valle)`; si falta, perfil 2.0TD), `vivienda` (`True`),
+`permanencia` y `servicios_adicionales` (`2`; `1` = solo ofertas sin ellos).
 
-Más avisos derivados de los datos: permanencia y su penalización estimada, servicios
-adicionales, y el PVPC frente a la mejor fija.
+## Limitaciones
 
-Un detalle que conviene no perder de vista: **las ofertas por tramos se valoran con tu
-reparto punta/llano/valle actual**. Para saber si te compensaría mover consumo, repite la
-consulta con el reparto que esperas tener (`--franjas`). En un caso real, mover 150 kWh al
-año de punta a valle movía la mejor horaria de 660 € a 639 €: 8 € por debajo de la mejor
-plana, después de reorganizar un año entero de lavadoras.
+- **No es un censo del mercado.** La CNMC solo publica ofertas que las comercializadoras
+  le remiten y valida. Comprobado el 2026-09-23 sobre 20 códigos postales: Endesa,
+  TotalEnergies, Plenitude, Holaluz y EDP no tienen ofertas; Iberdrola, una de gas.
+  Endesa e Iberdrola solo aparecen como `Comercializadora de referencia` (PVPC/TUR). El
+  resultado es *la mejor entre las verificadas por la CNMC*.
+- **Sin desglose de impuestos.** Confirma con la comercializadora si el importe lleva IVA.
+- **La factura incluye cosas que el comparador no cuenta**: servicios adicionales,
+  alquiler de equipos, bono social. El QR los desglosa (`impSA`, `finBS`); réstalos antes
+  de comparar.
+- **Las ofertas por tramos se valoran con tu reparto punta/llano/valle actual**, con los
+  tramos 2.0TD de la Circular 3/2020 (vigentes desde el 1/06/2021; Ceuta y Melilla usan
+  otros). Si piensas mover consumo, repite con `--franjas`. Si vienes de una tarifa de
+  discriminación horaria anterior, usa solo facturas posteriores a esa fecha.
+- **Sin histórico.** El catálogo no lleva fechas de alta ni caducidad, y la CNMC no
+  publica el histórico, así que no se puede decir en qué mes conviene cambiar.
+- **QR escaneado:** 400 dpi aguanta JPEG, giro y desenfoque; 300 dpi va bien salvo
+  desenfoque; 200 dpi solo si está limpio; 150 dpi no se lee.
 
-Lo que **no** hace, porque los datos no dan para ello: decir en qué mes del año conviene
-cambiar. El catálogo no lleva fechas de alta ni de caducidad de las ofertas, solo el tipo
-de cliente que admiten, y la CNMC no publica el histórico del comparador — hay una
-[solicitud abierta en datos.gob.es](https://datos.gob.es/es/solicitud-de-datos/historico-de-ofertas-del-comparador-de-ofertas-de-la-cnmc)
-desde septiembre de 2025, respondida con que esos datos no están en el catálogo de datos
-abiertos. El momento lo marca tu permanencia, no el mercado.
+## Documentación
 
-### Consumo: la ventana importa
-
-El QR trae los **12 meses rodantes**, que arrastran lo que consumías hace un año. Con
-varias facturas a mano, `anualizar()` extrapola una ventana más corta y más parecida a hoy:
-
-```python
-from comparador_luz_gas import anualizar, desde_fichero
-
-ultimas = [desde_fichero(p) for p in sorted(Path("facturas").glob("*.pdf"))[-6:]]
-total, franjas = anualizar(ultimas)
-```
-
-Cambia el importe estimado, no tanto el ranking: la CNMC solo usa tus kWh y les aplica su
-propio catálogo, así que lo que te haya subido tu comercializadora no entra en el cálculo.
-
-## Método y limitaciones
-
-Todo lo que devuelve este proyecto sale de la API oficial de la CNMC
-(comparador.cnmc.gob.es): no hay estimación de precios propia, solo cuentas sobre lo
-que ella responde. Es, con diferencia, la fuente más transparente que hay — pero eso
-no la hace completa.
-
-### No es un censo del mercado
-
-La CNMC solo publica ofertas que las comercializadoras le remiten y que sus técnicos
-validan una a una. Comprobado contra la API en vivo el 2026-09-23, sobre 20 códigos
-postales:
-
-- Presentes: Naturgy, Repsol, Galp, Octopus, Fenie, Nexus, Lumisa y ~45 más.
-- **Iberdrola Clientes**: una sola oferta, solo gas (`Plan Gas Hogar RL2 online`).
-- **Endesa Energía**: ninguna oferta, ni luz ni gas.
-- TotalEnergies, Plenitude, Holaluz, EDP: ninguna.
-
-Endesa e Iberdrola aparecen solo como `Comercializadora de referencia`, que es el
-PVPC/TUR regulado de sus filiales obligadas por ley (Energía XXI, Curenergía).
-
-Por eso cada respuesta lleva el bloque `cobertura`. La respuesta correcta a "¿cuál es
-la mejor tarifa?" es *la mejor entre las verificadas por la CNMC*, no *la mejor que
-existe*.
-
-### Otras limitaciones
-
-- **Sin desglose de impuestos**: los importes no llevan IVA desglosado; confírmalo con
-  la comercializadora antes de cambiarte.
-- **Sin histórico**: el catálogo no lleva fechas de alta ni caducidad de las ofertas,
-  así que no se puede decir en qué mes conviene cambiar (más detalle en
-  [Valoración a largo plazo](#valoración-a-largo-plazo-sin-llm)).
-- **Las ofertas por tramos se valoran con TU reparto punta/llano/valle**, sacado del
-  QR o de `anualizar()`. En Península, Illes Balears y Canarias, ese reparto asume los
-  tramos 2.0TD que fija la Circular 3/2020, aplicables desde el 1/06/2021 (punta 10-14h
-  y 18-22h, llano el resto del día laborable, valle 0-8h y festivos). Ceuta y Melilla
-  usan horarios distintos. **Si vienes de una tarifa de discriminación horaria
-  anterior** (p. ej. una "tarifa 8 horas" donde el valle lo elegías tú o lo fijaba la
-  comercializadora, no el tramo 0-8h regulado), el reparto histórico de esas facturas
-  no representa cómo caería ese consumo en los tramos *actuales* — la comparación de
-  ofertas horarias hereda esa incertidumbre. Usa solo facturas posteriores al 1/06/2021
-  si puedes.
-- **El comparador aplica su catálogo de hoy a tus kWh**: una subida de precio de tu
-  comercializadora actual no distorsiona la estimación, pero un cambio en tu propio
-  consumo sí.
+- [docs/qr-escaneado.md](docs/qr-escaneado.md): lectura del QR en facturas escaneadas,
+  con las cifras por resolución.
 
 ## Desarrollo
 
@@ -309,10 +196,17 @@ make test-live       # consulta la API real
 make test-facturas   # lee el QR de los PDFs de data/facturas/, si los hay
 ```
 
-Las capturas HAR (`data/har/`) y las facturas (`data/facturas/`) están en
-`.gitignore`: llevan CUPS, dirección y consumos reales. Los tests versionados usan un
-QR inventado.
+`data/har/` y `data/facturas/` están en `.gitignore` (llevan CUPS, dirección y consumos
+reales); los tests versionados usan un QR inventado.
 
-## Hecho con claude-arsenal
+## Proyectos relacionados
 
-Este repositorio se desarrolla con [claude-arsenal](https://github.com/nuncaeslupus/claude-arsenal), un marketplace de plugins para Claude Code orientado a trabajar con especificaciones: primero la especificación, después los tests que fallan, y criterios de aceptación con números. Las skills incluidas están en `claude-arsenal/`.
+- [claude-arsenal](https://github.com/nuncaeslupus/claude-arsenal) — flujo de Claude Code guiado por especificaciones y cola de tareas con puertas de aceptación.
+- [drawspec](https://github.com/nuncaeslupus/drawspec) — especificación declarativa de diagramas a SVG/PNG/texto limpio, escribible por LLMs; incluye servidor MCP.
+- [doc-control](https://github.com/nuncaeslupus/doc-control) — permite a agentes de IA editar documentos Word como cambios controlados.
+- [literary-critic](https://github.com/nuncaeslupus/literary-critic) — análisis de manuscritos con LLM al modo de un editor profesional.
+- [integral-job-search](https://github.com/nuncaeslupus/integral-job-search) — búsqueda de empleo centrada en el candidato, dentro de Claude Code.
+
+## Licencia
+
+[MIT](LICENSE)
