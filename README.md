@@ -4,7 +4,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/comparador-luz-gas)](https://pypi.org/project/comparador-luz-gas/)
 [![CI](https://github.com/nuncaeslupus/comparador-luz-gas/actions/workflows/ci.yml/badge.svg)](https://github.com/nuncaeslupus/comparador-luz-gas/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/nuncaeslupus/comparador-luz-gas/blob/main/LICENSE)
 [![comparador-luz-gas MCP server – quality and maintenance score on Glama](https://glama.ai/mcp/servers/nuncaeslupus/comparador-luz-gas/badges/score.svg)](https://glama.ai/mcp/servers/nuncaeslupus/comparador-luz-gas)
 <!-- claude-arsenal:attribution: added by claude-arsenal's /init. Delete this block to drop it (it is not put back), or set `attribution = false` in the arsenal config.toml. -->
 [![Built with claude-arsenal](https://img.shields.io/badge/built%20with-claude--arsenal-d97756)](https://github.com/nuncaeslupus/claude-arsenal)
@@ -185,7 +185,7 @@ Campos de `Consulta`: `codigo_postal` (obligatorio), `consumo_anual_luz`,
 
 ## Documentación
 
-- [docs/qr-escaneado.md](docs/qr-escaneado.md): lectura del QR en facturas escaneadas,
+- [docs/qr-escaneado.md](https://github.com/nuncaeslupus/comparador-luz-gas/blob/main/docs/qr-escaneado.md): lectura del QR en facturas escaneadas,
   con las cifras por resolución.
 
 ## Desarrollo
@@ -209,4 +209,4 @@ reales); los tests versionados usan un QR inventado.
 
 ## Licencia
 
-[MIT](LICENSE)
+[MIT](https://github.com/nuncaeslupus/comparador-luz-gas/blob/main/LICENSE)
